@@ -281,7 +281,7 @@
     button:hover,.chip:hover{transform:none}
     button:active,.chip:active{transform:scale(.985)}
     .sep{margin:16px 0;background:var(--border-color)}
-    .files{gap:2px}.fileRow{min-height:34px;padding:5px 6px;border-radius:8px;cursor:grab;transition:background .16s}
+    .files{gap:0}.fileRow{min-height:28px;padding:1px 6px;border-radius:8px;cursor:grab;transition:background .16s}
     .fileRow:hover{background:var(--hover-bg)}.fileRow input[type="checkbox"]{accent-color:#202020}
     .legendDot{width:9px;height:9px;min-width:9px;flex-basis:9px;border-width:1px}.fileName,.fileNameInput{font-size:12px;font-weight:520}.fileNameInput{width:0!important}
     .hint{font-size:10.5px}.emptyState{padding:12px;border:0;border-radius:11px;background:var(--input-bg);line-height:1.5}.emptyStateAction{height:29px;margin-top:9px;background:var(--panel)}
@@ -351,6 +351,27 @@
     .quickGuide summary{cursor:pointer;color:var(--text);font-weight:600}
     .quickGuide p{margin:10px 0}.quickGuide a{color:var(--text);text-underline-offset:3px}
     @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+    .fileRow .fileDelete{height:24px;width:22px;padding:0}
+    .tree{margin-top:6px}.gateGroup{margin-left:16px}
+    .tree .gateItem{min-height:30px;padding:2px 5px;gap:5px;border-radius:7px}
+    .gateDisclosure,.gateNodeIcon{height:24px;width:18px;flex:0 0 18px;padding:0;background:transparent;border:0;color:var(--muted);border-radius:4px}
+    .gateDisclosure svg{width:12px;height:12px;transition:transform .15s}
+    .gateDisclosure[aria-expanded="true"] svg{transform:rotate(90deg)}
+    .gateDisclosureSpacer{width:18px;flex:0 0 18px}
+    .gateNodeIcon svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+    .gateNodeIcon:hover{color:var(--text)}.gateName{font-size:12px;line-height:24px;border-radius:3px}
+    .gateItem.is-current .gateName{font-weight:600}.tree .gateDelete{width:20px;height:24px;padding:0;opacity:0;flex:0 0 20px;color:var(--muted)}
+    .gateItem:hover>.gateDelete,.gateItem:focus-within>.gateDelete{opacity:1}
+    .gateRoot{cursor:pointer}.gateRoot .gateName{font-weight:550}
+    .gateRoot .gateNodeIcon{display:flex;align-items:center;justify-content:center;transform:translateY(1px)}
+    .scatterFooter{flex-wrap:wrap;gap:18px}
+    .pseudocolorToggle{display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:12px}
+    .pseudocolorToggle input{appearance:none;-webkit-appearance:none;position:relative;width:32px;height:19px;margin:0;padding:0;border:1px solid var(--button-border);border-radius:999px;background:var(--button-bg);cursor:pointer;transition:background .15s}
+    .pseudocolorToggle input::before{content:"";position:absolute;left:2px;top:2px;width:13px;height:13px;border-radius:50%;background:var(--muted);transition:transform .15s}
+    .pseudocolorToggle input:checked{background:#327ac4;border-color:#327ac4}
+    .pseudocolorToggle input:checked::before{transform:translateX(13px);background:#fff}
+    .pseudocolorToggle input:focus-visible{outline:2px solid var(--text);outline-offset:3px}
+    @media(hover:none){.tree .gateDelete{opacity:1}}
   </style>
   <script defer src="./vendor/jspdf.umd.min.js"></script>
 </head>
@@ -430,6 +451,23 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="strategyExportModal">
+    <div class="modal-content">
+      <h4>Gating strategy</h4>
+      <p class="hint" id="strategySummary"></p>
+      <div class="ctrlRow">
+        <div><label for="strategyMode">Sample layout</label><select id="strategyMode"><option value="overlay">Overlay</option><option value="grid">Grid - one row per sample</option></select></div>
+        <div><label for="strategyColumns">Panels per page</label><select id="strategyColumns"><option>3</option><option>4</option><option selected>5</option><option>6</option></select></div>
+      </div>
+      <label class="compensationToggle" style="margin-top:18px"><input type="checkbox" id="strategyDensity"> Pseudocolor density</label>
+      <label for="strategyPalette">Density palette</label>
+      <select id="strategyPalette"><option value="classic">Classic (blue to red)</option><option value="viridis">Viridis</option><option value="plasma">Plasma</option></select>
+      <label class="compensationToggle" style="margin-top:18px"><input type="checkbox" id="strategyAllEvents" checked> Export all events (larger PDF)</label>
+      <p class="hint" style="margin-top:14px;line-height:1.5">Each plot shows the parent population and the gates applied at that step. Axis ranges match across sample rows. Long strategies continue on additional pages.</p>
+      <div class="modal-footer"><button id="cancelStrategyExport" class="secondary">Cancel</button><button id="confirmStrategyExport">Export PDF</button></div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="compensationModal">
     <div class="modal-content compensation-modal" role="dialog" aria-modal="true" aria-labelledby="compensationTitle">
       <div class="compensationHead">
@@ -486,6 +524,7 @@
     <div id="plotStylePaletteRow" class="styleSelect">
       <label for="plotStylePalette">Palette</label>
       <select id="plotStylePalette">
+        <option value="classic">Classic (blue to red)</option>
         <option value="viridis">Viridis</option>
         <option value="plasma">Plasma</option>
       </select>
@@ -525,6 +564,7 @@
           <div class="exportMenu" id="exportMenu">
             <button id="menuExportPDF" type="button">Image (PDF)</button>
             <button id="menuExportPNG" type="button">Image (PNG)</button>
+            <button id="menuExportStrategy" type="button">Gating strategy (PDF)</button>
             <button id="menuExportStats" type="button">Statistics (CSV)</button>
             <button id="menuExportCSV" type="button">Population (CSV)</button>
           </div>
@@ -624,7 +664,9 @@
         <div class="axisLabel y is-clickable" id="ylabel" title="Edit Y axis"></div>
         <div id="cursorCoords" class="cursor-coords" style="display:none;"></div>
       </div>
-      <div id="gridColsWrap" class="plotFooter">
+      <div id="scatterFooter" class="plotFooter scatterFooter">
+        <label class="pseudocolorToggle" for="scatterPseudocolorToggle"><input id="scatterPseudocolorToggle" type="checkbox" role="switch">Pseudocolor</label>
+      <div id="gridColsWrap" style="display:flex;align-items:center;gap:8px">
         <label for="gridCols">Grid columns</label>
         <select id="gridCols">
           <option value="auto">Auto</option>
@@ -635,6 +677,7 @@
           <option value="5">5</option>
           <option value="6">6</option>
         </select>
+      </div>
       </div>
     </section>
 
@@ -723,7 +766,7 @@ const palette = [
 const byId = id=>document.getElementById(id);
 const ui = {
   fileInput: byId('fileInput'), fileList: byId('fileList'),
-  xParam: byId('xParam'), yParam: byId('yParam'), plotType: byId('plotType'), gridCols: byId('gridCols'), gridColsWrap: byId('gridColsWrap'), population: byId('population'),
+  xParam: byId('xParam'), yParam: byId('yParam'), plotType: byId('plotType'), gridCols: byId('gridCols'), gridColsWrap: byId('gridColsWrap'), scatterFooter: byId('scatterFooter'), scatterPseudocolorToggle: byId('scatterPseudocolorToggle'), population: byId('population'),
   xScale: byId('xScale'), yScale: byId('yScale'), xRange: byId('xRange'), yRange: byId('yRange'), xMin: byId('xMin'), xMax: byId('xMax'), yMin: byId('yMin'), yMax: byId('yMax'),
   autoX: byId('autoX'), autoY: byId('autoY'), swapAxes: byId('swapAxes'),
   resetView: byId('resetView'),
@@ -742,6 +785,7 @@ const ui = {
   pngExportModal: byId('pngExportModal'), confirmPngExport: byId('confirmPngExport'), cancelPngExport: byId('cancelPngExport'), pngScale: byId('pngScale'), pngShowPercent: byId('pngShowPercent'),
   statsExportModal: byId('statsExportModal'), statsGateOptions: byId('statsGateOptions'), statsParamOptions: byId('statsParamOptions'), statsMetricOptions: byId('statsMetricOptions'),
   statsSelectAll: byId('statsSelectAll'), statsSelectNone: byId('statsSelectNone'), cancelStatsExport: byId('cancelStatsExport'), confirmStatsExport: byId('confirmStatsExport'),
+  exportStrategy: byId('menuExportStrategy'), strategyExportModal: byId('strategyExportModal'), strategyMode: byId('strategyMode'), strategyColumns: byId('strategyColumns'), strategyDensity: byId('strategyDensity'), strategyPalette: byId('strategyPalette'), strategyAllEvents: byId('strategyAllEvents'), strategySummary: byId('strategySummary'), cancelStrategyExport: byId('cancelStrategyExport'), confirmStrategyExport: byId('confirmStrategyExport'),
   gateApplyMenu: byId('gateApplyMenu'),
   axisPopover: byId('axisPopover'), axisPopoverTitle: byId('axisPopoverTitle'), axisPopoverClose: byId('axisPopoverClose'),
   axisStandardControls: byId('axisStandardControls'), histYModeControls: byId('histYModeControls'), histYModeHint: byId('histYModeHint'),
@@ -763,7 +807,8 @@ let plotDisplaySize = { ...DEFAULT_PLOT_SIZE, dpr: 1 };
 
 let samples = []; 
 let visibleSampleIds = new Set();
-let gates = []; 
+let gates = [];
+const collapsedGateIds = new Set();
 let tool = 'select';
 let drawState = null; 
 let editingGate = { id: null, handle: null }; 
@@ -781,7 +826,7 @@ let labelDragSampleId = null;
 let gateDragState = null;
 let activeAxisPopover = null;
 let activePlotStyleMode = null;
-const DEFAULT_PLOT_STYLE = { scatterDotSize: 1.5, scatterOpacity: 0.65, histLineWidth: 1.5, histFillOpacity: null, histogramYMode: 'percent', scatterGridPseudocolor: false, scatterGridPalette: 'viridis' };
+const DEFAULT_PLOT_STYLE = { scatterDotSize: 1.5, scatterOpacity: 0.65, histLineWidth: 1.5, histFillOpacity: null, histogramYMode: 'percent', scatterPseudocolor: false, scatterGridPseudocolor: false, scatterGridPalette: 'viridis' };
 let plotStyle = {...DEFAULT_PLOT_STYLE};
 let compensationState = { enabled: false, channels: [], matrix: [] };
 let compensationDraft = null;
@@ -833,6 +878,7 @@ function syncToolAvailability() {
     ui.exportMenuButton.disabled = !hasData;
     ui.swapAxes.disabled = isHist || !hasData;
     [ui.yParam, ui.yScale, ui.yMin, ui.yMax, ui.autoY].forEach(control => { control.disabled = isHist || !is2d; });
+    ui.scatterFooter.style.display = is2d && hasData ? 'flex' : 'none';
     ui.gridCols.disabled = ui.plotType.value !== 'scatter-grid';
     ui.gridColsWrap.style.display = ui.plotType.value === 'scatter-grid' ? 'flex' : 'none';
     const rectBtn = document.querySelector('[data-tool="rect"]');
@@ -1969,7 +2015,7 @@ function drawAxes(targetCtx = ctx, area = plotArea(targetCtx.canvas.width, targe
   }
 }
 function tickLabel(v, scale){ if(scale==='log'){ const p=Math.pow(10,Math.round(Math.log10(v))); return formatNum(p);} return formatNum(v); }
-function formatNum(v){ if(!isFinite(v)) return ''; const a=Math.abs(v); if(a>=1e4||a<1e-2) return v.toExponential(1); if(a<1) return v.toFixed(2); if(a<10) return v.toFixed(1); return Math.round(v).toString(); }
+function formatNum(v){ if(!isFinite(v)) return ''; if(v===0) return '0'; const a=Math.abs(v); if(a>=1e4||a<1e-2) return v.toExponential(1); if(a<1) return v.toFixed(2); if(a<10) return v.toFixed(1); return Math.round(v).toString(); }
 function niceStep(rawStep){
   if (!isFinite(rawStep) || rawStep <= 0) return 1;
   const exp = Math.floor(Math.log10(rawStep));
@@ -2173,6 +2219,7 @@ function histogramYAxisLabel(plotType = ui.plotType.value) {
   return plotType === 'hist' && histogramYMode() === 'count' ? 'Count' : 'Percent of maximum';
 }
 const DENSITY_PALETTES = {
+  classic: ['#0000b8', '#009bd6', '#00c4ce', '#00ef55', '#baff00', '#ffff00', '#ff8000', '#ff0000'],
   viridis: ['#440154', '#414487', '#2a788e', '#22a884', '#7ad151', '#fde725'],
   plasma: ['#0d0887', '#6a00a8', '#b12a90', '#e16462', '#fca636', '#f0f921']
 };
@@ -2190,47 +2237,87 @@ function paletteColor(name, t) {
   const b = hexToRgb(stops[idx + 1]);
   return rgbToHex(lerp(a.r, b.r, local), lerp(a.g, b.g, local), lerp(a.b, b.b, local));
 }
-function drawPseudocolorScatterCell(targetCtx, cellArea, sample, popFilter) {
-    const {x, y, w, h} = cellArea;
-    const xs = makeScaler(axis.xMin, axis.xMax, axis.xScale, w);
-    const ys = makeScaler(axis.yMin, axis.yMax, axis.yScale, h);
-    const ix = sample.params.indexOf(axis.xParam), iy = sample.params.indexOf(axis.yParam);
-    if (ix < 0 || iy < 0) return;
-    const binSize = 2;
-    const cols = Math.max(1, Math.ceil(w / binSize));
-    const rows = Math.max(1, Math.ceil(h / binSize));
-    const bins = new Uint32Array(cols * rows);
-    const ax = sample.data[ix], ay = sample.data[iy];
-    let maxCount = 0;
-    for (let k = 0; k < sample.n; k++) {
-        const vx = ax[k], vy = ay[k];
-        if(axis.xScale === 'log' && vx <= 0) continue;
-        if(axis.yScale === 'log' && vy <= 0) continue;
-        if(!popFilter(sample, k)) continue;
-        const px = x + xs.fwd(vx);
-        const py = y + h - ys.fwd(vy);
-        if(px < x || px > x + w || py < y || py > y + h) continue;
-        const col = Math.min(cols - 1, Math.max(0, Math.floor((px - x) / binSize)));
-        const row = Math.min(rows - 1, Math.max(0, Math.floor((py - y) / binSize)));
-        const next = ++bins[row * cols + col];
-        if (next > maxCount) maxCount = next;
-    }
-    if (!maxCount) return;
-    targetCtx.save();
-    targetCtx.globalAlpha = scatterOpacity();
-    const denom = Math.log1p(maxCount);
-    for (let row = 0; row < rows; row++) {
-        for (let col = 0; col < cols; col++) {
-            const count = bins[row * cols + col];
-            if (!count) continue;
-            targetCtx.fillStyle = paletteColor(plotStyle.scatterGridPalette, Math.log1p(count) / denom);
-            targetCtx.fillRect(x + col * binSize, y + row * binSize, binSize + 0.5, binSize + 0.5);
+// Density is estimated on a fixed grid in transformed axis space, then assigned
+// to the actual event coordinates. The same estimate is used on screen and in PDF.
+function calculateDensityPoints(plotSamples, plotAxis, popFilter, maxPoints = 150000) {
+    const resolution = 128;
+    const bins = new Uint32Array(resolution * resolution);
+    const xs = makeScaler(plotAxis.xMin, plotAxis.xMax, plotAxis.xScale, 1);
+    const ys = makeScaler(plotAxis.yMin, plotAxis.yMax, plotAxis.yScale, 1);
+    const points = [];
+    const stride = Number.isFinite(maxPoints) ? Math.max(1, Math.ceil(plotSamples.reduce((n, s) => n + s.n, 0) / maxPoints)) : 1;
+    let accepted = 0;
+    for (const sample of plotSamples) {
+        const ix = sample.params.indexOf(plotAxis.xParam), iy = sample.params.indexOf(plotAxis.yParam);
+        if (ix < 0 || iy < 0) continue;
+        for (let i = 0; i < sample.n; i++) {
+            const vx = sample.data[ix][i], vy = sample.data[iy][i];
+            if (!Number.isFinite(vx) || !Number.isFinite(vy)) continue;
+            if ((plotAxis.xScale === 'log' && vx <= 0) || (plotAxis.yScale === 'log' && vy <= 0) || !popFilter(sample, i)) continue;
+            const x = xs.fwd(vx), y = ys.fwd(vy);
+            if (x < 0 || x > 1 || y < 0 || y > 1) continue;
+            const col = Math.min(resolution - 1, Math.floor(x * resolution));
+            const row = Math.min(resolution - 1, Math.floor(y * resolution));
+            const bin = row * resolution + col;
+            bins[bin]++;
+            if (accepted++ % stride === 0) points.push({x, y, bin});
         }
     }
+    // A small, symmetric smoothing kernel avoids visible bin boundaries.
+    const horizontal = new Float64Array(bins.length), smooth = new Float64Array(bins.length);
+    const kernel = [1, 4, 6, 4, 1];
+    for (let row = 0; row < resolution; row++) for (let col = 0; col < resolution; col++) {
+        let sum = 0, weight = 0;
+        for (let k = -2; k <= 2; k++) if (col + k >= 0 && col + k < resolution) {
+            sum += bins[row * resolution + col + k] * kernel[k + 2]; weight += kernel[k + 2];
+        }
+        horizontal[row * resolution + col] = sum / weight;
+    }
+    let maxDensity = 0;
+    for (let row = 0; row < resolution; row++) for (let col = 0; col < resolution; col++) {
+        let sum = 0, weight = 0;
+        for (let k = -2; k <= 2; k++) if (row + k >= 0 && row + k < resolution) {
+            sum += horizontal[(row + k) * resolution + col] * kernel[k + 2]; weight += kernel[k + 2];
+        }
+        const density = sum / weight;
+        smooth[row * resolution + col] = density;
+        if (bins[row * resolution + col]) maxDensity = Math.max(maxDensity, density);
+    }
+    const buckets = Array.from({length: 64}, () => []);
+    const denom = Math.log1p(maxDensity);
+    for (const point of points) {
+        const density = smooth[point.bin];
+        const level = denom ? Math.min(63, Math.floor(63 * Math.log1p(density) / denom)) : 0;
+        buckets[level].push({x: point.x, y: point.y});
+    }
+    return {buckets, eventCount: accepted, drawnCount: points.length, maxDensity};
+}
+
+function drawDensityDots(targetCtx, area, density, colorPalette, radius, opacity) {
+    targetCtx.save();
+    targetCtx.beginPath(); targetCtx.rect(area.x, area.y, area.w, area.h); targetCtx.clip();
+    targetCtx.globalAlpha = opacity;
+    // Draw dense regions last so sparse events cannot obscure a population core.
+    density.buckets.forEach((points, level) => {
+        if (!points.length) return;
+        targetCtx.fillStyle = paletteColor(colorPalette, level / 63);
+        targetCtx.beginPath();
+        for (const point of points) {
+            const x = area.x + point.x * area.w, y = area.y + (1 - point.y) * area.h;
+            targetCtx.moveTo(x + radius, y); targetCtx.arc(x, y, radius, 0, TAU);
+        }
+        targetCtx.fill();
+    });
     targetCtx.restore();
 }
 
+function drawPseudocolorScatterCell(targetCtx, cellArea, sample, popFilter) {
+    const density = calculateDensityPoints(Array.isArray(sample) ? sample : [sample], axis, popFilter);
+    drawDensityDots(targetCtx, cellArea, density, plotStyle.scatterGridPalette, scatterDotSize() / 2, scatterOpacity());
+}
+
 function render(targetCtx = ctx, isExport = false, exportOptions = {}){
+    if (!isExport) ui.scatterPseudocolorToggle.checked = !!plotStyle[ui.plotType.value === 'scatter-grid' ? 'scatterGridPseudocolor' : 'scatterPseudocolor'];
   if (!isExport) { 
     setAxisFromUI();
     syncCanvasResolution();
@@ -2263,7 +2350,9 @@ function drawScatterPlot(targetCtx, isExport, exportOptions, width, height){
     const ys=makeScaler(axis.yMin,axis.yMax,axis.yScale,h);
     const popFilter = makePopulationFilter(currentPopulationId);
 
-    visibleSamples().forEach(s=>{
+    if (plotStyle.scatterPseudocolor) {
+        drawPseudocolorScatterCell(targetCtx, area, visibleSamples(), popFilter);
+    } else visibleSamples().forEach(s=>{
       const ix = s.params.indexOf(axis.xParam), iy = s.params.indexOf(axis.yParam);
       if (ix<0 || iy<0) return;
       const ax=s.data[ix], ay=s.data[iy];
@@ -3218,72 +3307,109 @@ function openGateApplyMenu(gateId, clientX, clientY) {
     ui.gateApplyMenu.style.left = `${left}px`;
     ui.gateApplyMenu.style.top = `${top}px`;
 }
-function rebuildGateTree(){
-  ui.gateTree.innerHTML='';
-  const root = {id:null};
-  function childrenOf(pid){ return gates.filter(g=>g.parentId===pid); }
-  function branchText(lineage) {
-    if (!lineage.length) return '•';
-    return lineage.slice(0, -1).map(isLast => isLast ? '  ' : '│ ').join('') + (lineage[lineage.length - 1] ? '└─' : '├─');
-  }
-  function rowFor(g, depth, lineage){
-    const row = document.createElement('div'); row.className='gateItem';
-    row.classList.toggle('is-current', currentPopulationId === g.id);
-    const branch = document.createElement('span');
-    branch.className = 'gateBranch';
-    branch.textContent = branchText(lineage);
-    const effectiveSampleId = gateEffectiveSampleId(g);
-    const dot = document.createElement('span');
-    if (effectiveSampleId) {
-        dot.className = 'gateSampleDot';
-        dot.style.background = sampleById(effectiveSampleId)?.color || gateColor(g);
-        dot.title = sampleName(effectiveSampleId);
-    }
-    const name = document.createElement('span');
-    name.className = 'gateName';
-    name.textContent = g.name;
-    name.contentEditable = true;
-    name.addEventListener('blur', () => {
-        g.name = name.textContent;
-        refreshPopulationOptions();
-    });
-    name.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); name.blur(); }
-    });
+function gateShapeIcon(type) {
+  const shapes = {
+    rect: '<rect x="3" y="4" width="14" height="12" rx="2"/>',
+    ellipse: '<ellipse cx="10" cy="10" rx="7" ry="5.5"/>',
+    poly: '<path d="m4 4 10-1 3 9-7 5-7-6Z"/>',
+    segment: '<path d="M4 5v10m12-10v10M4 10h12"/>',
+    all: '<circle cx="6" cy="7" r="1.3"/><circle cx="13" cy="5" r="1.3"/><circle cx="10" cy="12" r="1.3"/><circle cx="15" cy="14" r="1.3"/><circle cx="4" cy="14" r="1.3"/>'
+  };
+  return `<svg viewBox="0 0 20 20" aria-hidden="true">${shapes[type] || shapes.ellipse}</svg>`;
+}
 
-    const meta = document.createElement('span');
-    meta.className='hint';
-    meta.textContent = ` (${isSegmentGate(g) ? 'segment' : g.type}${effectiveSampleId ? ` · ${sampleName(effectiveSampleId)}` : ''})`;
-    const del = document.createElement('button');
-    del.className = 'borderless icon-only gateDelete';
-    del.type = 'button';
-    del.title = `Delete ${g.name}`;
-    del.setAttribute('aria-label', `Delete ${g.name}`);
-    del.textContent = '✕';
-    del.addEventListener('click', (e) => { e.stopPropagation(); removeGateAndChildren(g.id); });
-    row.addEventListener('dblclick', (e) => {
-        if (e.target === del) return;
-        selectGatePopulation(g.id);
+function rebuildGateTree(){
+  ui.gateTree.innerHTML = '';
+  ui.gateTree.setAttribute('role', 'tree');
+  ui.gateTree.setAttribute('aria-label', 'Gate hierarchy');
+  const childrenByParent = new Map();
+  gates.forEach(g => {
+    const parent = g.parentId || null;
+    if (!childrenByParent.has(parent)) childrenByParent.set(parent, []);
+    childrenByParent.get(parent).push(g);
+  });
+  const activeIds = new Set(gates.map(g => g.id));
+  for (const id of collapsedGateIds) if (!activeIds.has(id)) collapsedGateIds.delete(id);
+  // Selecting a population elsewhere reveals its ancestry in the tree.
+  let ancestor = gates.find(g => g.id === currentPopulationId)?.parentId;
+  while (ancestor) { collapsedGateIds.delete(ancestor); ancestor = gates.find(g => g.id === ancestor)?.parentId; }
+  const root = document.createElement('div');
+  root.className = 'gateItem gateRoot'; root.tabIndex = 0;
+  root.setAttribute('role', 'treeitem'); root.setAttribute('aria-level', '1');
+  root.setAttribute('aria-selected', String(!currentPopulationId));
+  root.classList.toggle('is-current', !currentPopulationId);
+  const rootIcon = document.createElement('span'); rootIcon.className = 'gateNodeIcon'; rootIcon.innerHTML = gateShapeIcon('all');
+  const rootName = document.createElement('span'); rootName.className = 'gateName'; rootName.textContent = 'All events';
+  const selectRoot = () => { currentPopulationId = null; ui.population.value = 'ALL'; editingGate.id = null; rebuildGateTree(); render(); };
+  root.addEventListener('click', selectRoot);
+  root.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectRoot(); } });
+  root.append(rootIcon, rootName);
+  if (samples.length || gates.length) ui.gateTree.append(root);
+  function walk(parentId, container, depth) {
+    (childrenByParent.get(parentId) || []).forEach(g => {
+      const children = childrenByParent.get(g.id) || [];
+      const node = document.createElement('div');
+      node.setAttribute('role', 'treeitem'); node.setAttribute('aria-level', String(depth + 2));
+      node.setAttribute('aria-selected', String(currentPopulationId === g.id));
+      node.setAttribute('aria-label', g.name);
+      const row = document.createElement('div'); row.className = 'gateItem'; row.tabIndex = 0;
+      row.classList.toggle('is-current', currentPopulationId === g.id);
+      const group = document.createElement('div'); group.className = 'gateGroup'; group.setAttribute('role', 'group');
+      const isCollapsed = collapsedGateIds.has(g.id);
+      group.hidden = isCollapsed;
+      if (children.length) {
+        node.setAttribute('aria-expanded', String(!isCollapsed));
+        const toggle = document.createElement('button'); toggle.className = 'gateDisclosure'; toggle.type = 'button';
+        toggle.setAttribute('aria-label', `${isCollapsed ? 'Expand' : 'Collapse'} ${g.name}`);
+        toggle.setAttribute('aria-expanded', String(!isCollapsed));
+        toggle.innerHTML = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="m4 2 4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        const setExpanded = expanded => {
+          if (expanded) collapsedGateIds.delete(g.id); else collapsedGateIds.add(g.id);
+          group.hidden = !expanded; node.setAttribute('aria-expanded', String(expanded));
+          toggle.setAttribute('aria-expanded', String(expanded)); toggle.setAttribute('aria-label', `${expanded ? 'Collapse' : 'Expand'} ${g.name}`);
+        };
+        toggle.addEventListener('click', e => { e.stopPropagation(); setExpanded(group.hidden); });
+        row.addEventListener('keydown', e => { if (e.target !== row) return; if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); setExpanded(e.key === 'ArrowRight'); } });
+        row.append(toggle);
+      } else {
+        const blank = document.createElement('span'); blank.className = 'gateDisclosureSpacer'; row.append(blank);
+      }
+      const icon = document.createElement('button'); icon.className = 'gateNodeIcon'; icon.type = 'button';
+      icon.innerHTML = gateShapeIcon(isSegmentGate(g) ? 'segment' : g.type);
+      icon.setAttribute('aria-label', `View ${g.name} population`); icon.title = `View ${g.name} population`;
+      icon.addEventListener('click', () => selectGatePopulation(g.id));
+      const name = document.createElement('span'); name.className = 'gateName'; name.textContent = g.name;
+      name.contentEditable = true; name.setAttribute('role', 'textbox'); name.setAttribute('aria-label', `Rename ${g.name}`); name.spellcheck = false;
+      name.title = `${g.name} - ${isSegmentGate(g) ? 'segment' : g.type}`;
+      let originalName = g.name;
+      name.addEventListener('focus', () => { originalName = g.name; });
+      name.addEventListener('blur', () => {
+        g.name = name.textContent.trim() || originalName; name.textContent = g.name;
+        node.setAttribute('aria-label', g.name); name.setAttribute('aria-label', `Rename ${g.name}`);
+        icon.setAttribute('aria-label', `View ${g.name} population`);
+        refreshPopulationOptions(); render();
+      });
+      name.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); name.blur(); }
+        if (e.key === 'Escape') { e.preventDefault(); name.textContent = originalName; name.blur(); }
+      });
+      row.append(icon, name);
+      const sampleId = gateEffectiveSampleId(g);
+      if (sampleId) {
+        const dot = document.createElement('span'); dot.className = 'gateSampleDot';
+        dot.style.background = sampleById(sampleId)?.color || gateColor(g); dot.title = sampleName(sampleId); row.append(dot);
+      }
+      const del = document.createElement('button'); del.className = 'borderless icon-only gateDelete'; del.type = 'button';
+      del.title = `Delete ${g.name}`; del.setAttribute('aria-label', `Delete ${g.name}`); del.textContent = '✕';
+      del.addEventListener('click', e => { e.stopPropagation(); removeGateAndChildren(g.id); }); row.append(del);
+      row.addEventListener('dblclick', e => { if (!e.target.closest('button')) selectGatePopulation(g.id); });
+      row.addEventListener('keydown', e => { if (e.target === row && e.key === 'Enter') { e.preventDefault(); selectGatePopulation(g.id); } });
+      row.addEventListener('contextmenu', e => { e.preventDefault(); openGateApplyMenu(g.id, e.clientX, e.clientY); });
+      node.append(row); container.append(node);
+      if (children.length) { node.append(group); walk(g.id, group, depth + 1); }
     });
-    row.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-        openGateApplyMenu(g.id, e.clientX, e.clientY);
-    });
-    row.append(branch);
-    if (effectiveSampleId) row.append(dot);
-    row.append(name, meta, del);
-    ui.gateTree.append(row);
   }
-  function walk(pid, depth, lineage = []){
-    const children = childrenOf(pid);
-    children.forEach((g, idx)=>{
-        const isLast = idx === children.length - 1;
-        const nextLineage = depth === 0 ? [] : [...lineage, isLast];
-        rowFor(g, depth, nextLineage);
-        walk(g.id, depth+1, depth === 0 ? [isLast] : nextLineage);
-    });
-  }
-  walk(null,0);
+  walk(null, ui.gateTree, 0);
   ui.gatesEmptyState.style.display = gates.length ? 'none' : 'block';
 }
 
@@ -3670,6 +3796,7 @@ function finalizeRect(){
   const {start,cur} = drawState; let x0=start.x, y0=start.y, x1=cur.x, y1=cur.y;
   const sampleId = drawState.sampleId || null;
   const g = {id:idGen(), name:`Gate ${gates.length+1}`, type:'rect', sampleId, parentId: parentIdForNewGate(sampleId), def:{x0,y0,x1,y1}, xParam: axis.xParam, yParam: axis.yParam, xScale: axis.xScale, yScale: axis.yScale};
+  g.viewAxis = {...axis};
   gates.push(g); drawState=null; 
   markGatePercentDirty();
   refreshPopulationOptions(); rebuildGateTree(); render();
@@ -3682,6 +3809,7 @@ function finalizeSegment(){
   if (!isFinite(x0) || !isFinite(x1) || Math.abs(x1 - x0) <= 0) { drawState=null; render(); return; }
   const sampleId = drawState.sampleId || null;
   const g = {id:idGen(), name:`Gate ${gates.length+1}`, type:'segment', sampleId, parentId: parentIdForNewGate(sampleId), def:{x0, x1}, xParam: axis.xParam, yParam: null, xScale: axis.xScale, yScale: null};
+  g.viewAxis = {...axis};
   gates.push(g); drawState=null;
   markGatePercentDirty();
   refreshPopulationOptions(); rebuildGateTree(); render();
@@ -3695,6 +3823,7 @@ function finalizeEllipse(){
   if (!(rx > 0) || !(ry > 0)) { drawState=null; render(); return; }
   const sampleId = drawState.sampleId || null;
   const g = {id:idGen(), name:`Gate ${gates.length+1}`, type:'ellipse', sampleId, parentId: parentIdForNewGate(sampleId), def:{cx:center.x, cy:center.y, rx, ry, angle}, xParam: axis.xParam, yParam: axis.yParam, xScale: axis.xScale, yScale: axis.yScale};
+  g.viewAxis = {...axis};
   gates.push(g); drawState=null; 
   markGatePercentDirty();
   refreshPopulationOptions(); rebuildGateTree(); render();
@@ -3705,6 +3834,7 @@ function finalizePoly(){
   const pts = (drawState?.pts||[]).slice(); if(pts.length<3){ drawState=null; render(); return; }
   const sampleId = drawState.sampleId || null;
   const g = {id:idGen(), name:`Gate ${gates.length+1}`, type:'poly', sampleId, parentId: parentIdForNewGate(sampleId), def:{pts}, xParam: axis.xParam, yParam: axis.yParam, xScale: axis.xScale, yScale: axis.yScale};
+  g.viewAxis = {...axis};
   gates.push(g); drawState=null; 
   markGatePercentDirty();
   refreshPopulationOptions(); rebuildGateTree(); render();
@@ -3922,9 +4052,9 @@ function configurePlotStyleMenu(mode) {
     ui.plotStyleTitle.textContent = isHist ? 'Histogram Style' : 'Dot Plot Style';
     ui.plotStylePrimaryLabel.textContent = isHist ? 'Line width' : 'Dot size';
     ui.plotStyleSecondaryLabel.textContent = isHist ? 'Fill opacity' : 'Dot opacity';
-    ui.plotStylePseudocolorRow.style.display = isScatterGrid ? 'flex' : 'none';
-    ui.plotStylePaletteRow.style.display = isScatterGrid ? 'block' : 'none';
-    ui.plotStylePseudocolor.checked = !!plotStyle.scatterGridPseudocolor;
+    ui.plotStylePseudocolorRow.style.display = !isHist ? 'flex' : 'none';
+    ui.plotStylePaletteRow.style.display = !isHist ? 'block' : 'none';
+    ui.plotStylePseudocolor.checked = !!plotStyle[isScatterGrid ? 'scatterGridPseudocolor' : 'scatterPseudocolor'];
     ui.plotStylePalette.value = plotStyle.scatterGridPalette || 'viridis';
     if (isHist) {
         setRangeConfig(ui.plotStylePrimary, {min: 0.5, max: 6, step: 0.25, value: histLineWidth()});
@@ -3953,10 +4083,8 @@ function resetActivePlotStyle() {
     } else if (activePlotStyleMode === 'scatter' || activePlotStyleMode === 'scatter-grid') {
         plotStyle.scatterDotSize = 1.5;
         plotStyle.scatterOpacity = 0.65;
-        if (activePlotStyleMode === 'scatter-grid') {
-            plotStyle.scatterGridPseudocolor = false;
-            plotStyle.scatterGridPalette = 'viridis';
-        }
+        plotStyle[activePlotStyleMode === 'scatter-grid' ? 'scatterGridPseudocolor' : 'scatterPseudocolor'] = false;
+        plotStyle.scatterGridPalette = 'viridis';
     }
     configurePlotStyleMenu(activePlotStyleMode);
     render();
@@ -4043,8 +4171,12 @@ ui.plotStyleClose.addEventListener('click', closePlotStyleMenu);
 ui.plotStyleReset.addEventListener('click', resetActivePlotStyle);
 ui.plotStylePrimary.addEventListener('input', applyPlotStyleControl);
 ui.plotStyleSecondary.addEventListener('input', applyPlotStyleControl);
+ui.scatterPseudocolorToggle.addEventListener('change', () => {
+    plotStyle[ui.plotType.value === 'scatter-grid' ? 'scatterGridPseudocolor' : 'scatterPseudocolor'] = ui.scatterPseudocolorToggle.checked;
+    render();
+});
 ui.plotStylePseudocolor.addEventListener('change', () => {
-    plotStyle.scatterGridPseudocolor = ui.plotStylePseudocolor.checked;
+    plotStyle[activePlotStyleMode === 'scatter-grid' ? 'scatterGridPseudocolor' : 'scatterPseudocolor'] = ui.plotStylePseudocolor.checked;
     render();
 });
 ui.plotStylePalette.addEventListener('change', () => {
@@ -4342,6 +4474,10 @@ function drawScatterPlotPDF(pdf, area, options){
     const xs = makeScaler(axis.xMin, axis.xMax, axis.xScale, w);
     const ys = makeScaler(axis.yMin, axis.yMax, axis.yScale, h);
     const popFilter = makePopulationFilter(currentPopulationId);
+    if (plotStyle.scatterPseudocolor) {
+        drawPseudocolorScatterCellPDF(pdf, area, visibleSamples(), popFilter, options);
+        return;
+    }
     visibleSamples().forEach(s => {
         const ix = s.params.indexOf(axis.xParam), iy = s.params.indexOf(axis.yParam); if (ix < 0 || iy < 0) return;
         const ax = s.data[ix], ay = s.data[iy];
@@ -4358,44 +4494,22 @@ function drawScatterPlotPDF(pdf, area, options){
         pdf.setGState(new pdf.GState({opacity: 1.0}));
     });
 }
-function drawPseudocolorScatterCellPDF(pdf, cellArea, sample, popFilter) {
-    const {x, y, w, h} = cellArea;
-    const xs = makeScaler(axis.xMin, axis.xMax, axis.xScale, w);
-    const ys = makeScaler(axis.yMin, axis.yMax, axis.yScale, h);
-    const ix = sample.params.indexOf(axis.xParam), iy = sample.params.indexOf(axis.yParam);
-    if (ix < 0 || iy < 0) return;
-    const binSize = 2;
-    const cols = Math.max(1, Math.ceil(w / binSize));
-    const rows = Math.max(1, Math.ceil(h / binSize));
-    const bins = new Uint32Array(cols * rows);
-    const ax = sample.data[ix], ay = sample.data[iy];
-    let maxCount = 0;
-    for (let k = 0; k < sample.n; k++) {
-        const vx = ax[k], vy = ay[k];
-        if(axis.xScale === 'log' && vx <= 0) continue;
-        if(axis.yScale === 'log' && vy <= 0) continue;
-        if(!popFilter(sample, k)) continue;
-        const px = x + xs.fwd(vx);
-        const py = y + h - ys.fwd(vy);
-        if(px < x || px > x + w || py < y || py > y + h) continue;
-        const col = Math.min(cols - 1, Math.max(0, Math.floor((px - x) / binSize)));
-        const row = Math.min(rows - 1, Math.max(0, Math.floor((py - y) / binSize)));
-        const next = ++bins[row * cols + col];
-        if (next > maxCount) maxCount = next;
-    }
-    if (!maxCount) return;
-    const denom = Math.log1p(maxCount);
-    pdf.setGState(new pdf.GState({opacity: scatterOpacity()}));
-    for (let row = 0; row < rows; row++) {
-        for (let col = 0; col < cols; col++) {
-            const count = bins[row * cols + col];
-            if (!count) continue;
-            const c = hexToRgb(paletteColor(plotStyle.scatterGridPalette, Math.log1p(count) / denom));
-            pdf.setFillColor(c.r, c.g, c.b);
-            pdf.rect(x + col * binSize, y + row * binSize, binSize + 0.5, binSize + 0.5, 'F');
-        }
-    }
-    pdf.setGState(new pdf.GState({opacity: 1}));
+function drawDensityDotsPDF(pdf, area, density, colorPalette, radius, opacity) {
+    pdf.saveGraphicsState();
+    pdf.rect(area.x, area.y, area.w, area.h); pdf.clip(); pdf.discardPath();
+    pdf.setGState(new pdf.GState({opacity}));
+    density.buckets.forEach((points, level) => {
+        if (!points.length) return;
+        const c = hexToRgb(paletteColor(colorPalette, level / 63));
+        pdf.setFillColor(c.r, c.g, c.b);
+        for (const point of points) pdf.circle(area.x + point.x * area.w, area.y + (1 - point.y) * area.h, radius, 'F');
+    });
+    pdf.restoreGraphicsState();
+}
+
+function drawPseudocolorScatterCellPDF(pdf, cellArea, sample, popFilter, options = {}) {
+    const density = calculateDensityPoints(Array.isArray(sample) ? sample : [sample], axis, popFilter, options.allEvents ? Infinity : 50000);
+    drawDensityDotsPDF(pdf, cellArea, density, plotStyle.scatterGridPalette, scatterDotSize() / 3, scatterOpacity());
 }
 
 function drawGridScatterPlotPDF(pdf, area, isLightMode, options) {
@@ -4415,7 +4529,7 @@ function drawGridScatterPlotPDF(pdf, area, isLightMode, options) {
         const ix = s.params.indexOf(axis.xParam), iy = s.params.indexOf(axis.yParam); if (ix<0 || iy<0) return;
         const ax=s.data[ix], ay=s.data[iy];
         if (plotStyle.scatterGridPseudocolor) {
-            drawPseudocolorScatterCellPDF(pdf, cellArea, s, popFilter);
+            drawPseudocolorScatterCellPDF(pdf, cellArea, s, popFilter, options);
         } else {
             const pointColor = hexToRgb(s.color); pdf.setFillColor(pointColor.r, pointColor.g, pointColor.b); pdf.setGState(new pdf.GState({opacity: scatterOpacity()}));
             const dotRadius = scatterDotSize() / 3;
@@ -4792,6 +4906,7 @@ function serializeWorkspace() {
       const { rawData, compensationApplied, ...storedSample } = s;
       return {...storedSample, data: Array.from(rawData || s.data, d => Array.from(d))};
     }),
+    collapsedGateIds: Array.from(collapsedGateIds),
     gates, axis, visibleSampleIds: Array.from(visibleSampleIds), currentPopulationId,
     plotType: ui.plotType.value, gridCols: ui.gridCols.value, plotStyle,
     paramSettings, theme: document.body.dataset.theme, compensation: compensationState,
@@ -4870,6 +4985,8 @@ function prepareWorkspace(workspace) {
 function restoreWorkspace(workspace) {
   const next = prepareWorkspace(workspace);
   samples = next.samples; gates = next.gates; axis = next.axis;
+  collapsedGateIds.clear();
+  if (Array.isArray(next.collapsedGateIds)) next.collapsedGateIds.filter(id => gates.some(g => g.id === id)).forEach(id => collapsedGateIds.add(id));
   visibleSampleIds = new Set(next.visibleSampleIds); currentPopulationId = next.currentPopulationId || null;
   compensationState = next.compensation;
   Object.keys(paramSettings).forEach(key => delete paramSettings[key]);
@@ -4905,6 +5022,326 @@ ui.loadWorkspaceInput.addEventListener('change', async (e) => {
   e.target.value = '';
   try { restoreWorkspace(JSON.parse(await file.text())); }
   catch (err) { alert(`Failed to load workspace: ${err.message.replace(/[.]+$/, '')}. Your current session has been kept.`); console.error(err); }
+});
+
+// ---------------------------- Gating strategy PDF ----------------------------
+function buildGatingStrategyPanels(gateList = gates, plotSamples = visibleSamples()) {
+    const panels = [], visited = new Set();
+    const walk = parentId => {
+        const groups = new Map();
+        gateList.filter(g => (g.parentId || null) === parentId).forEach(g => {
+            if (!plotSamples.some(s => gateAppliesToSample(g, s.id))) return;
+            const histogram = isSegmentGate(g);
+            const key = JSON.stringify([g.xParam, histogram ? null : g.yParam, g.xScale || 'linear', histogram ? null : (g.yScale || 'linear')]);
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key).push(g);
+        });
+        for (const siblings of groups.values()) {
+            // Keep all labels readable even for a large set of sibling gates.
+            for (let i = 0; i < siblings.length; i += 6) {
+                const panelGates = siblings.slice(i, i + 6), first = panelGates[0];
+                panels.push({step: panels.length + 1, parentId, gates: panelGates,
+                    xParam: first.xParam, yParam: isSegmentGate(first) ? null : first.yParam,
+                    xScale: first.xScale || 'linear', yScale: first.yScale || 'linear', histogram: isSegmentGate(first)});
+            }
+            for (const gate of siblings) if (!visited.has(gate.id)) { visited.add(gate.id); walk(gate.id); }
+        }
+    };
+    walk(null);
+    return panels;
+}
+
+function strategyGatePoints(g) {
+    const d = g.def;
+    if (g.type === 'rect') return [{x:d.x0,y:d.y0},{x:d.x1,y:d.y0},{x:d.x1,y:d.y1},{x:d.x0,y:d.y1}];
+    if (isSegmentGate(g)) return [{x:d.x0,y:0},{x:d.x1,y:0}];
+    if (g.type === 'poly') return d.pts;
+    if (g.type === 'ellipse') {
+        const cx = transformAxisValue(d.cx, g.xScale), cy = transformAxisValue(d.cy, g.yScale);
+        const angle = d.angle || 0;
+        return Array.from({length:97}, (_, i) => {
+            const t = i * TAU / 96, dx = d.rx * Math.cos(t), dy = d.ry * Math.sin(t);
+            return {x: inverseTransformAxisValue(cx + dx * Math.cos(angle) - dy * Math.sin(angle), g.xScale),
+                y: inverseTransformAxisValue(cy + dx * Math.sin(angle) + dy * Math.cos(angle), g.yScale)};
+        });
+    }
+    return [];
+}
+
+function strategyAxisForPanel(panel, plotSamples) {
+    const result = {xParam:panel.xParam, yParam:panel.yParam, xScale:panel.xScale, yScale:panel.yScale};
+    const parentFilter = makePopulationFilter(panel.parentId);
+    for (const dim of ['x','y']) {
+        if (dim === 'y' && panel.histogram) { result.yMin = 0; result.yMax = 100; result.yScale = 'linear'; continue; }
+        const param = panel[dim + 'Param'], scale = panel[dim + 'Scale'];
+        const valid = v => Number.isFinite(v) && (scale !== 'log' || v > 0);
+        const domains = panel.gates.map(g => g.viewAxis).filter(view => view && view[dim + 'Param'] === param && view[dim + 'Scale'] === scale
+            && valid(view[dim + 'Min']) && valid(view[dim + 'Max']) && view[dim + 'Max'] > view[dim + 'Min']);
+        let min, max;
+        if (domains.length) {
+            min = Math.min(...domains.map(v => v[dim + 'Min'])); max = Math.max(...domains.map(v => v[dim + 'Max']));
+        } else {
+            const values = [];
+            for (const sample of plotSamples) {
+                const pi = sample.params.indexOf(param); if (pi < 0) continue;
+                const stride = Math.max(1, Math.ceil(sample.n / 10000));
+                for (let i = 0; i < sample.n; i += stride) if (valid(sample.data[pi][i]) && parentFilter(sample, i)) values.push(sample.data[pi][i]);
+            }
+            values.sort((a,b) => a-b);
+            min = values[Math.floor(values.length * 0.005)] ?? (scale === 'log' ? 0.1 : 0);
+            max = values[Math.min(values.length - 1, Math.floor(values.length * 0.995))] ?? (scale === 'log' ? 1000 : 1);
+        }
+        // A moved or edited gate must stay inside the exported view.
+        const bounds = panel.gates.flatMap(strategyGatePoints).map(p => p[dim]).filter(valid);
+        for (const value of bounds) { min = Math.min(min, value); max = Math.max(max, value); }
+        let lo = transformAxisValue(min, scale), hi = transformAxisValue(max, scale);
+        const padding = Math.max((hi - lo) * 0.04, Math.abs(lo) * 0.01, 0.01);
+        lo -= padding; hi += padding;
+        if (scale === 'linear' && min >= 0) lo = Math.max(0, lo);
+        result[dim + 'Min'] = inverseTransformAxisValue(lo, scale);
+        result[dim + 'Max'] = inverseTransformAxisValue(hi, scale);
+    }
+    return result;
+}
+
+function strategyGateStats(gate, plotSamples) {
+    const parentFilter = makePopulationFilter(gate.parentId);
+    let parent = 0, events = 0;
+    for (const sample of plotSamples) {
+        if (!gateAppliesToSample(gate, sample.id)) continue;
+        const ix = sample.params.indexOf(gate.xParam), iy = sample.params.indexOf(gate.yParam);
+        if (ix < 0 || (!isSegmentGate(gate) && iy < 0)) continue;
+        for (let i = 0; i < sample.n; i++) {
+            if (!parentFilter(sample, i)) continue;
+            parent++;
+            if (pointInGate(gate, sample.data[ix][i], iy < 0 ? NaN : sample.data[iy][i])) events++;
+        }
+    }
+    return {parent, events, percent: parent ? events / parent * 100 : null};
+}
+
+function strategyPanelSamples(panel, plotSamples) {
+    return plotSamples.filter(s => panel.gates.some(g => gateAppliesToSample(g, s.id))
+        && s.params.includes(panel.xParam) && (panel.histogram || s.params.includes(panel.yParam)));
+}
+
+function strategyPdfText(pdf, text, x, y, width, maxLines = 2, options = {}) {
+    const lines = pdf.splitTextToSize(String(text), width);
+    if (lines.length > maxLines) {
+        lines.length = maxLines;
+        while (pdf.getTextWidth(lines[maxLines - 1] + '...') > width) lines[maxLines - 1] = lines[maxLines - 1].slice(0, -1);
+        lines[maxLines - 1] += '...';
+    }
+    pdf.text(lines, x, y, options);
+    return lines.length;
+}
+
+function drawStrategyAxesPDF(pdf, area, plotAxis, histogram) {
+    const xs = makeScaler(plotAxis.xMin, plotAxis.xMax, plotAxis.xScale, area.w);
+    const ys = makeScaler(plotAxis.yMin, plotAxis.yMax, plotAxis.yScale, area.h);
+    pdf.setDrawColor(183, 189, 198); pdf.setLineWidth(0.5); pdf.rect(area.x, area.y, area.w, area.h, 'S');
+    pdf.setFont('helvetica','normal'); pdf.setFontSize(7.5); pdf.setTextColor(89, 98, 112);
+    for (const v of getAxisTicks(plotAxis.xMin, plotAxis.xMax, plotAxis.xScale, 4)) {
+        const x = area.x + xs.fwd(v);
+        pdf.line(x, area.y + area.h, x, area.y + area.h + 3);
+        const label = formatExportTickLabel(v, plotAxis.xScale);
+        drawPdfSuperscriptText(pdf, label, Math.max(area.x + 10, Math.min(area.x + area.w - 10, x)), area.y + area.h + 12, {align:'center'});
+    }
+    for (const v of (histogram ? [0,50,100] : getAxisTicks(plotAxis.yMin, plotAxis.yMax, plotAxis.yScale, 4))) {
+        const y = area.y + area.h - ys.fwd(v);
+        pdf.line(area.x - 3, y, area.x, y);
+        drawPdfSuperscriptText(pdf, formatExportTickLabel(v, plotAxis.yScale), area.x - 6, y + 2.5, {align:'right'});
+    }
+    pdf.setFontSize(9); pdf.setTextColor(50, 59, 72);
+    strategyPdfText(pdf, plotAxis.xParam, area.x + area.w/2, area.y + area.h + 27, area.w, 2, {align:'center'});
+    const yTitle = histogram ? 'Percent of maximum' : plotAxis.yParam;
+    const lines = pdf.splitTextToSize(yTitle, area.h - 4).slice(0,2);
+    lines.forEach((line, i) => pdf.text(line, area.x - 41 + i*10, area.y + area.h/2 + pdf.getTextWidth(line)/2, {angle:90}));
+}
+
+function drawStrategyScatterPDF(pdf, area, plotAxis, plotSamples, parentFilter, options) {
+    const radius = Math.max(0.25, scatterDotSize() / 3);
+    if (options.density) {
+        const density = calculateDensityPoints(plotSamples, plotAxis, parentFilter, options.allEvents ? Infinity : 50000);
+        drawDensityDotsPDF(pdf, area, density, options.palette, radius, scatterOpacity());
+        return;
+    }
+    const xs = makeScaler(plotAxis.xMin, plotAxis.xMax, plotAxis.xScale, area.w);
+    const ys = makeScaler(plotAxis.yMin, plotAxis.yMax, plotAxis.yScale, area.h);
+    pdf.saveGraphicsState(); pdf.rect(area.x,area.y,area.w,area.h); pdf.clip(); pdf.discardPath();
+    pdf.setGState(new pdf.GState({opacity:scatterOpacity()}));
+    for (const s of plotSamples) {
+        const ix = s.params.indexOf(plotAxis.xParam), iy = s.params.indexOf(plotAxis.yParam);
+        if (ix < 0 || iy < 0) continue;
+        const c = hexToRgb(s.color); pdf.setFillColor(c.r,c.g,c.b);
+        const stride = options.allEvents ? 1 : Math.max(1, Math.ceil(s.n/50000));
+        for (let i = 0; i < s.n; i += stride) {
+            const vx=s.data[ix][i], vy=s.data[iy][i];
+            if (!Number.isFinite(vx) || !Number.isFinite(vy) || (plotAxis.xScale === 'log' && vx <= 0) || (plotAxis.yScale === 'log' && vy <= 0) || !parentFilter(s,i)) continue;
+            const x=area.x+xs.fwd(vx), y=area.y+area.h-ys.fwd(vy);
+            if(x>=area.x && x<=area.x+area.w && y>=area.y && y<=area.y+area.h) pdf.circle(x,y,radius,'F');
+        }
+    }
+    pdf.restoreGraphicsState();
+}
+
+function drawStrategyHistogramPDF(pdf, area, plotAxis, plotSamples, parentFilter) {
+    const xs = makeScaler(plotAxis.xMin,plotAxis.xMax,plotAxis.xScale,area.w);
+    pdf.saveGraphicsState(); pdf.rect(area.x,area.y,area.w,area.h); pdf.clip(); pdf.discardPath();
+    for (const s of plotSamples) {
+        const pi=s.params.indexOf(plotAxis.xParam); if(pi<0) continue;
+        const values=[];
+        for(let i=0;i<s.n;i++) if(Number.isFinite(s.data[pi][i]) && parentFilter(s,i)) values.push(s.data[pi][i]);
+        const points=calculateHistogram(values,plotAxis.xMin,plotAxis.xMax,plotAxis.xScale,128);
+        const max=points.reduce((n,p)=>Math.max(n,p.y),0); if(!max) continue;
+        const c=hexToRgb(s.color);pdf.setDrawColor(c.r,c.g,c.b);pdf.setLineWidth(1.1);
+        for(let i=1;i<points.length;i++) pdf.line(area.x+xs.fwd(points[i-1].x),area.y+area.h-points[i-1].y/max*area.h*.93,area.x+xs.fwd(points[i].x),area.y+area.h-points[i].y/max*area.h*.93);
+    }
+    pdf.restoreGraphicsState();
+}
+
+function drawStrategyGatePDF(pdf, area, plotAxis, gate, number) {
+    const xs=makeScaler(plotAxis.xMin,plotAxis.xMax,plotAxis.xScale,area.w);
+    const ys=makeScaler(plotAxis.yMin,plotAxis.yMax,plotAxis.yScale,area.h);
+    const points=strategyGatePoints(gate).map(p=>({x:area.x+xs.fwd(p.x),y:area.y+area.h-ys.fwd(p.y)}));
+    if(points.some(p=>!Number.isFinite(p.x)||!Number.isFinite(p.y)) || !points.length) return;
+    pdf.saveGraphicsState();pdf.rect(area.x,area.y,area.w,area.h);pdf.clip();pdf.discardPath();
+    pdf.setDrawColor(36,44,56);pdf.setLineWidth(1);
+    if(isSegmentGate(gate)) {
+        const left=points[0].x,right=points[1].x,y=area.y+area.h*.12;
+        pdf.line(left,y,right,y);pdf.line(left,y-4,left,y+7);pdf.line(right,y-4,right,y+7);
+    } else {
+        for(let i=0;i<points.length;i++){ const a=points[i],b=points[(i+1)%points.length];pdf.line(a.x,a.y,b.x,b.y); }
+    }
+    const x=Math.max(area.x+6,Math.min(area.x+area.w-6,points[0].x));
+    const y=isSegmentGate(gate)?area.y+area.h*.12-8:Math.max(area.y+7,Math.min(area.y+area.h-7,Math.min(...points.map(p=>p.y))-5));
+    pdf.setFillColor(255,255,255);pdf.circle(x,y,6,'F');pdf.setFontSize(7);pdf.setTextColor(36,44,56);pdf.text(String(number),x,y+2.3,{align:'center'});
+    pdf.restoreGraphicsState();
+}
+
+function gatingStrategyPagination(panelCount, sampleCount, mode, requestedColumns = 5) {
+    const columns = Math.min(panelCount, Math.max(1, Math.min(6, Number(requestedColumns) || 5)));
+    const rowCount = mode === 'grid' ? sampleCount : 1;
+    const pages = [];
+    for (let rowStart = 0; rowStart < rowCount; rowStart += 3) for (let colStart = 0; colStart < panelCount; colStart += columns) {
+        pages.push({rowStart, rowEnd:Math.min(rowCount,rowStart+3),colStart,colEnd:Math.min(panelCount,colStart+columns)});
+    }
+    return pages;
+}
+
+function createGatingStrategyPDF(options = {}) {
+    const {jsPDF} = window.jspdf || {};
+    if (!jsPDF) throw new Error('The PDF library could not load. Reload the page and try again.');
+    const mode=options.mode==='grid'?'grid':'overlay';
+    const plotSamples=visibleSamples();
+    if(!plotSamples.length) throw new Error('Show at least one sample before exporting a gating strategy.');
+    const panels=buildGatingStrategyPanels(gates,plotSamples);
+    if(!panels.length) throw new Error('Draw at least one gate for a visible sample first.');
+    const settings={...options,mode,palette:options.palette || plotStyle.scatterGridPalette || 'viridis'};
+    const panelAxes=panels.map(p=>strategyAxisForPanel(p,strategyPanelSamples(p,plotSamples)));
+    const gateSteps=new Map();panels.forEach(p=>p.gates.forEach(g=>gateSteps.set(g.id,p.step)));
+    const pages=gatingStrategyPagination(panels.length,plotSamples.length,mode,options.columns);
+    const columnWidth=252, plotSize=186, margin=32;
+    const labelRows=Math.max(...panels.map(p=>p.gates.length));
+    const rowHeight=plotSize+98+labelRows*24;
+    let pdf;
+    pages.forEach((page,pageIndex)=>{
+        const pagePanels=panels.slice(page.colStart,page.colEnd);
+        const width=margin*2+pagePanels.length*columnWidth;
+        const legendRows=mode==='overlay'?Math.ceil(plotSamples.length/Math.max(1,Math.floor((width-64)/180))):0;
+        const headerNote=`${mode==='grid'?'One row per sample':'Samples overlaid'} | Percentages of parent population. ${settings.density?'Density color is relative to each panel.':'Colors identify samples.'}`;
+        // Narrow continuation pages need additional space for a wrapped subtitle.
+        const noteRows=Math.max(1,Math.ceil(headerNote.length / Math.max(24,Math.floor((width-64)/4.5))));
+        const noteExtra=(noteRows-1)*11;
+        const headerHeight=(mode==='overlay'?76+legendRows*14:82)+noteExtra;
+        const height=headerHeight+(page.rowEnd-page.rowStart)*rowHeight+34;
+        const orientation=width>=height?'landscape':'portrait';
+        if(!pdf) pdf=new jsPDF({orientation,unit:'pt',format:[width,height],compress:true});
+        else pdf.addPage([width,height],orientation);
+        pdf.setFillColor(255,255,255);pdf.rect(0,0,width,height,'F');
+        pdf.setFont('helvetica','bold');pdf.setFontSize(17);pdf.setTextColor(30,39,53);pdf.text('Gating strategy',margin,30);
+        pdf.setFont('helvetica','normal');pdf.setFontSize(9);pdf.setTextColor(101,111,127);
+        pdf.text('Cytofeather',width-margin,29,{align:'right'});
+        strategyPdfText(pdf,headerNote,margin,48,width-margin*2,noteRows);
+        if(mode==='overlay') {
+            const cols=Math.max(1,Math.floor((width-64)/180));
+            plotSamples.forEach((s,i)=>{
+                const x=margin+(i%cols)*180,y=65+noteExtra+Math.floor(i/cols)*14;
+                const c=hexToRgb(s.color);
+                if(!settings.density || panels.some(p=>p.histogram)){pdf.setFillColor(c.r,c.g,c.b);pdf.circle(x+3,y-2.5,2.5,'F');}
+                pdf.setFontSize(8);strategyPdfText(pdf,s.name,x+11,y,161,1);
+            });
+        }
+        pagePanels.forEach((panel,col)=>{
+            const x=margin+col*columnWidth;
+            const title=panel.gates.length<=2?panel.gates.map(g=>g.name).join(' / '):`${panel.gates[0].name} + ${panel.gates.length-1} gates`;
+            pdf.setFont('helvetica','bold');pdf.setFontSize(10.5);pdf.setTextColor(30,39,53);
+            strategyPdfText(pdf,`${panel.step}. ${title}`,x+43,headerHeight+2,plotSize,2);
+            pdf.setFont('helvetica','normal');
+        });
+        for(let row=page.rowStart;row<page.rowEnd;row++) {
+            const rowSamples=mode==='grid'?[plotSamples[row]]:plotSamples;
+            const top=headerHeight+(row-page.rowStart)*rowHeight;
+            pagePanels.forEach((panel,col)=>{
+                const x=margin+col*columnWidth;
+                const eligible=strategyPanelSamples(panel,rowSamples);
+                const parent=gates.find(g=>g.id===panel.parentId);
+                const source=parent?`${parent.name} (step ${gateSteps.get(parent.id) || '?'})`:'All events';
+                pdf.setFontSize(8);pdf.setTextColor(101,111,127);
+                const rowLabel=mode==='grid'?`${rowSamples[0].name} | From ${source}`:`From ${source}`;
+                strategyPdfText(pdf,rowLabel,x+43,top+29,plotSize,2);
+                const area={x:x+43,y:top+52,w:plotSize,h:plotSize};
+                const plotAxis=panelAxes[page.colStart+col];
+                drawStrategyAxesPDF(pdf,area,plotAxis,panel.histogram);
+                const parentFilter=makePopulationFilter(panel.parentId);
+                if(eligible.length) {
+                    if(panel.histogram) drawStrategyHistogramPDF(pdf,area,plotAxis,eligible,parentFilter);
+                    else drawStrategyScatterPDF(pdf,area,plotAxis,eligible,parentFilter,settings);
+                } else {
+                    pdf.setTextColor(135,142,153);pdf.setFontSize(9);
+                    const applicable=rowSamples.some(s=>panel.gates.some(g=>gateAppliesToSample(g,s.id)));
+                    pdf.text(applicable?'Parameters unavailable':'Not applicable',area.x+area.w/2,area.y+area.h/2,{align:'center'});
+                }
+                panel.gates.forEach((gate,i)=>{
+                    const applies=eligible.some(s=>gateAppliesToSample(gate,s.id));
+                    if(applies) drawStrategyGatePDF(pdf,area,plotAxis,gate,i+1);
+                    const stats=strategyGateStats(gate,eligible);
+                    const pct=stats.percent===null?'N/A':`${stats.percent.toFixed(1)}%`;
+                    const lineY=area.y+area.h+54+i*24;
+                    pdf.setTextColor(50,59,72);pdf.setFontSize(8);
+                    strategyPdfText(pdf,`${i+1}. ${gate.name}`,area.x,lineY,area.w-48,2);
+                    pdf.setFont('helvetica','bold');pdf.text(pct,area.x+area.w,lineY,{align:'right'});pdf.setFont('helvetica','normal');
+                });
+            });
+        }
+        pdf.setFontSize(8);pdf.setTextColor(135,142,153);
+        pdf.text(`Steps ${page.colStart+1}-${page.colEnd} of ${panels.length}${mode==='grid'?` | Samples ${page.rowStart+1}-${page.rowEnd} of ${plotSamples.length}`:''}`,margin,height-14);
+        pdf.text(`${pageIndex+1} / ${pages.length}`,width-margin,height-14,{align:'right'});
+    });
+    pdf.setProperties({title:'Cytofeather gating strategy',subject:'Sequential gates, displayed on their parent populations',creator:'Cytofeather'});
+    return pdf;
+}
+
+ui.exportStrategy.addEventListener('click', safeHandler('Gating strategy', () => {
+    const panels=buildGatingStrategyPanels();
+    if(!panels.length) { alert('Draw at least one gate for a visible sample first.'); return; }
+    ui.strategyMode.value=ui.plotType.value==='scatter-grid'?'grid':'overlay';
+    ui.strategyDensity.checked=!!plotStyle[ui.plotType.value==='scatter-grid'?'scatterGridPseudocolor':'scatterPseudocolor'];
+    ui.strategyPalette.value=plotStyle.scatterGridPalette || 'viridis';
+    ui.strategySummary.textContent=`${panels.length} step${panels.length===1?'':'s'} across ${visibleSamples().length} visible sample${visibleSamples().length===1?'':'s'}. Sibling gates on the same axes share a panel.`;
+    openModal(ui.strategyExportModal);
+}));
+ui.cancelStrategyExport.addEventListener('click',()=>closeModal(ui.strategyExportModal));
+ui.confirmStrategyExport.addEventListener('click',async()=>{
+    ui.confirmStrategyExport.disabled=true;ui.confirmStrategyExport.textContent='Preparing...';
+    try {
+        await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+        const mode=ui.strategyMode.value;
+        const pdf=createGatingStrategyPDF({mode,columns:Number(ui.strategyColumns.value),density:ui.strategyDensity.checked,palette:ui.strategyPalette.value,allEvents:ui.strategyAllEvents.checked});
+        pdf.save(`gating-strategy-${mode}.pdf`);
+        closeModal(ui.strategyExportModal);
+    } catch(error) { alert(`Gating strategy export failed: ${error.message}`); console.error(error); }
+    finally {ui.confirmStrategyExport.disabled=false;ui.confirmStrategyExport.textContent='Export PDF';}
 });
 
 // ---------------------------- Parsers & Helpers ----------------------------

@@ -84,10 +84,15 @@ The Export menu includes:
 
 - Image (PDF)
 - Image (PNG)
+- Gating strategy (PDF)
 - Statistics (CSV)
 - Population (CSV)
 
 PNG exports include the current theme background so shared images stay legible. PDF export includes options for size, gates, sample labels, percent labels, all-events plotting, custom axis labels, and light/dark background. Statistics export lets you choose gates, parameters, and metrics such as events, mean, median, standard deviation, percent parent, and percent total.
+
+Gating strategy export follows the gate hierarchy, with sibling gates on the same axes grouped into one panel. Choose overlaid samples or a grid with one row per sample, a density palette, and the number of panels per page. Each panel shows its parent population, gate outlines, and percentages of parent.
+
+Use the Pseudocolor toggle below a scatter plot to enable density dots in overlay or grid mode. Right-click the plot to choose a palette and adjust styling. Overlay density is calculated across all visible samples. Palettes include Classic (blue/cyan/green/yellow/red), Viridis, and Plasma. Use the gate hierarchy disclosure arrows to collapse branches and the gate icon to view a population.
 
 ## Privacy
 
@@ -115,10 +120,10 @@ Because there is no build step, refreshing the browser is enough after editing `
 Run the dependency-free regression checks with Node.js 22 or later:
 
 ```bash
-node --test tests/core.test.cjs
+node --test tests/*.test.cjs
 ```
 
-The tests exercise the production parser, compensation, export, and workspace functions, including all nine bundled FCS files. See [RELEASE_CHECKS.md](RELEASE_CHECKS.md) for the browser smoke test and remaining release checks.
+The tests exercise the production parser, compensation, export, workspace, density, and gating strategy functions, including all nine bundled FCS files and real PDF generation.
 
 ## License
 

@@ -9,7 +9,7 @@ const script = html.match(/<script>\s*([\s\S]*?)<\/script>/)[1];
 new vm.Script(script); // Check syntax of the complete production script.
 const functions = ['parseCSVRows','parseCSV','uniqueParameterNames','parseFCS','parseText','csvEscape','populationCSV','prepareWorkspace','serializeWorkspace','normalizeGate','isSegmentGate','transformAxisValue','sampleDetectorNames','parameterIndexForDetector','normalizeCompensationState','compensationOperator','invertSquareMatrix','applyCompensationToSample','makePopulationFilter','valueOf','pointInGate','gateAppliesToSample','gateEffectiveSampleId','visibleSamples','calculateStats','calculateHistogram','smoothHistogramBins'];
 const ctx = vm.createContext({TextDecoder, Float64Array, Float32Array, Uint32Array, DataView, Uint8Array, console});
-vm.runInContext(`let samples = [], gates = [], axis = {}, compensationState = {}, visibleSampleIds = new Set(), currentPopulationId = null; const palette=['#123456']; let plotStyle={}; const paramSettings={}; const ui={plotType:{value:'hist-offset'},gridCols:{value:'2'}}; const document={body:{dataset:{theme:'dark'}}};`, ctx);
+vm.runInContext(`let samples = [], gates = [], axis = {}, compensationState = {}, visibleSampleIds = new Set(), currentPopulationId = null; const collapsedGateIds=new Set(); const palette=['#123456']; let plotStyle={}; const paramSettings={}; const ui={plotType:{value:'hist-offset'},gridCols:{value:'2'}}; const document={body:{dataset:{theme:'dark'}}};`, ctx);
 for (const name of functions) {
   const start = script.search(new RegExp(`(?:async )?function ${name}\\(`));
   assert.ok(start >= 0, name);
