@@ -8,8 +8,8 @@ const source = html.match(/<script>\s*([\s\S]*?)<\/script>/)[1];
 new vm.Script(source);
 function appContext() {
   const context = vm.createContext({console,TextDecoder,Float64Array,Float32Array,Uint32Array,Uint8Array,DataView});
-  vm.runInContext(`const TAU=Math.PI*2;let samples=[],gates=[],currentPopulationId=null,axis={},visibleSampleIds=new Set();let plotStyle={scatterDotSize:1.5,scatterOpacity:.65,scatterGridPalette:'classic'};const ui={fileList:{children:[]}};`,context);
-  const names=['makeScaler','calculateDensityPoints','drawDensityDots','drawDensityDotsPDF','paletteColor','lerp','rgbToHex','hexToRgb','clampNumber','scatterDotSize','scatterOpacity','buildGatingStrategyPanels','strategyGatePoints','strategyAxisForPanel','strategyGateStats','strategyPanelSamples','strategyPdfText','drawStrategyAxesPDF','drawStrategyScatterPDF','drawStrategyHistogramPDF','drawStrategyGatePDF','gatingStrategyPagination','createGatingStrategyPDF','makePopulationFilter','pointInGate','valueOf','gateEffectiveSampleId','gateAppliesToSample','isSegmentGate','visibleSamples','transformAxisValue','inverseTransformAxisValue','getEllipseCenterT','gatePointToTransformed','pnpoly','getAxisTicks','getLogTicks','getLinearTicks','niceStep','formatExportTickLabel','formatNum','drawPdfSuperscriptText','parseSuperscriptToken','calculateHistogram','smoothHistogramBins'];
+  vm.runInContext(`const TAU=Math.PI*2;let sampleGroups=[],samples=[],gates=[],currentPopulationId=null,axis={},visibleSampleIds=new Set();let plotStyle={scatterDotSize:1.5,scatterOpacity:.65,scatterGridPalette:'classic'};const ui={fileList:{children:[]}};`,context);
+  const names=['gateSampleGroupId','activeSampleGroupId','makeScaler','calculateDensityPoints','drawDensityDots','drawDensityDotsPDF','paletteColor','lerp','rgbToHex','hexToRgb','clampNumber','scatterDotSize','scatterOpacity','buildGatingStrategyPanels','buildGatingStrategyRows','strategyGatePoints','strategyAxisForPanel','strategyGateStats','strategyPanelSamples','strategyPdfText','drawStrategyAxesPDF','drawStrategyScatterPDF','drawStrategyHistogramPDF','drawStrategyGatePDF','gatingStrategyPagination','createGatingStrategyPDF','makePopulationFilter','pointInGate','valueOf','gateEffectiveSampleId','gateAppliesToSample','isSegmentGate','visibleSamples','transformAxisValue','inverseTransformAxisValue','getEllipseCenterT','gatePointToTransformed','pnpoly','getAxisTicks','getLogTicks','getLinearTicks','niceStep','formatExportTickLabel','formatNum','drawPdfSuperscriptText','parseSuperscriptToken','calculateHistogram','smoothHistogramBins'];
   for(const name of names){
     const start=source.search(new RegExp(`function ${name}\\(`));assert.ok(start>=0,name);
     const firstLine=source.slice(start,source.indexOf('\n',start));
@@ -18,7 +18,7 @@ function appContext() {
   vm.runInContext(source.match(/const DENSITY_PALETTES = \{[\s\S]*?\n\};/)[0],context);
   context.setState = state => {
     context.state=state;
-    vm.runInContext(`samples=state.samples||[];gates=state.gates||[];visibleSampleIds=new Set(samples.map(s=>s.id));ui.fileList.children=samples.map(s=>({dataset:{sampleId:s.id}}));`,context);
+    vm.runInContext(`sampleGroups=state.sampleGroups||[];samples=state.samples||[];gates=state.gates||[];visibleSampleIds=new Set(samples.map(s=>s.id));ui.fileList.children=samples.map(s=>({dataset:{sampleId:s.id}}));`,context);
   };
   return context;
 }
@@ -88,4 +88,20 @@ test('Real PDF generation covers scatter, histogram and continuation pages witho
     assert.ok(pdf.output().startsWith('%PDF-'));assert.ok(pdf.output('arraybuffer').byteLength>2000);
   }
   assert.equal(JSON.stringify(state),before);
+});
+
+test('Strategy rows pack only applicable gates and separate overlapping sample groups',()=>{
+  const c=appContext(),a=sample('a',[[1,2]]),b=sample('b',[[3,4]]),outside=sample('outside',[[5,6]]);
+  const shared=gate('shared'),ga={...gate('Group A root'),groupId:'ga'},child=gate('Group A child',ga.id),gb={...gate('Group B root'),groupId:'gb'},only={...gate('b only'),sampleId:'b'};
+  c.setState({samples:[a,b,outside],sampleGroups:[{id:'ga',name:'Group A',sampleIds:['a','b']},{id:'gb',name:'Group B',sampleIds:['b']}],gates:[shared,ga,child,gb,only]});
+  const ids=r=>Array.from(r.panels,p=>Array.from(p.gates,g=>g.id)).flat();
+  const overlay=c.buildGatingStrategyRows('overlay');
+  assert.deepEqual(Array.from(overlay,r=>r.label),['All samples','Group A','Group B']);
+  assert.deepEqual(ids(overlay[1]),[ga.id,child.id]);assert.deepEqual(ids(overlay[2]),[gb.id]);
+  assert.deepEqual(Array.from(overlay[2].samples,s=>s.id),['b']);
+  const grid=c.buildGatingStrategyRows('grid');
+  assert.deepEqual(ids(grid[0]),[shared.id,ga.id,child.id]);assert.deepEqual(ids(grid[2]),[shared.id]);
+  assert.ok(ids(grid[1]).includes(only.id));assert.ok(!ids(grid[0]).includes(only.id));
+  c.window={jspdf:require('../vendor/jspdf.umd.min.js')};
+  assert.equal(c.createGatingStrategyPDF({mode:'overlay',columns:1}).getNumberOfPages(),2);
 });

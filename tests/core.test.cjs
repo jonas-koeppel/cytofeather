@@ -7,9 +7,9 @@ const path = require('node:path');
 const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 const script = html.match(/<script>\s*([\s\S]*?)<\/script>/)[1];
 new vm.Script(script); // Check syntax of the complete production script.
-const functions = ['parseCSVRows','parseCSV','uniqueParameterNames','parseFCS','parseText','csvEscape','populationCSV','prepareWorkspace','serializeWorkspace','normalizeGate','isSegmentGate','transformAxisValue','sampleDetectorNames','parameterIndexForDetector','normalizeCompensationState','compensationOperator','invertSquareMatrix','applyCompensationToSample','makePopulationFilter','valueOf','pointInGate','gateAppliesToSample','gateEffectiveSampleId','visibleSamples','calculateStats','calculateHistogram','smoothHistogramBins'];
+const functions = ['checkedSamples','sampleGroupNames','gateExportPath','defaultGroupColor','statisticsCSV','recalculateGatePercentCache','gatePercentText','gatePercentTextForSample','gateColor','sampleById','gateOffsetBands','gateVisibleForCurrentAxes','gateSampleIsVisible','gateSampleGroupId','activeSampleGroupId','copyGateBranchToGroup','gateAndDescendantIds','importEventIndex','compensationPreviewSample','polygonEdgeAt','parseCSVRows','parseCSV','uniqueParameterNames','parseFCS','parseText','csvEscape','populationCSV','prepareWorkspace','serializeWorkspace','normalizeGate','isSegmentGate','transformAxisValue','sampleDetectorNames','parameterIndexForDetector','normalizeCompensationState','compensationOperator','invertSquareMatrix','applyCompensationToSample','makePopulationFilter','valueOf','pointInGate','gateAppliesToSample','gateEffectiveSampleId','visibleSamples','calculateStats','calculateHistogram','smoothHistogramBins'];
 const ctx = vm.createContext({TextDecoder, Float64Array, Float32Array, Uint32Array, DataView, Uint8Array, console});
-vm.runInContext(`let samples = [], gates = [], axis = {}, compensationState = {}, visibleSampleIds = new Set(), currentPopulationId = null; const collapsedGateIds=new Set(); const palette=['#123456']; let plotStyle={}; const paramSettings={}; const ui={plotType:{value:'hist-offset'},gridCols:{value:'2'}}; const document={body:{dataset:{theme:'dark'}}};`, ctx);
+vm.runInContext(`let gatePercentCache=new Map(),gatePercentBySampleCache=new Map(),gatePercentCacheDirty=true;let sampleGroups = [], samples = [], gates = [], axis = {}, compensationState = {}, visibleSampleIds = new Set(), currentPopulationId = null; const collapsedGateIds=new Set(); const palette=['#123456']; let plotStyle={}; const paramSettings={}; const ui={plotType:{value:'hist-offset'},gridCols:{value:'2'}}; const document={body:{dataset:{theme:'dark'}}};`, ctx);
 for (const name of functions) {
   const start = script.search(new RegExp(`(?:async )?function ${name}\\(`));
   assert.ok(start >= 0, name);
@@ -19,6 +19,7 @@ for (const name of functions) {
   const firstLine = script.slice(start, lineEnd);
   vm.runInContext(firstLine.trimEnd().endsWith('}') ? firstLine : script.slice(start, end), ctx);
 }
+vm.runInContext(script.match(/const STATS_EXPORT_METRICS = \[[\s\S]*?\n\];/)[0],ctx);
 vm.runInContext(script.split('\n').find(line => line.startsWith('const idGen =')), ctx);
 const run = source => vm.runInContext(source, ctx);
 const buf = text => new TextEncoder().encode(text).buffer;
@@ -87,4 +88,82 @@ test('Legacy numeric strings in cached axis ranges can be reopened',()=>{
 });
 test('Saved compensation must not silently replace invalid values with zero',()=>{
   const ws=workspace(); ws.compensation={enabled:true,channels:['X','Y'],matrix:[[100,'bad'],[0,100]]};assert.throws(()=>ctx.prepareWorkspace(ws),/matrix/);
+});
+
+test('Import choices cap evenly across FCS and CSV, preserve totals, or skip',async()=>{
+  for(const parse of [()=>ctx.parseFCS(fcs({values:[1,2,3,4,5,6,7,8]}),'large.fcs',n=>{assert.equal(n,4);return 2;}),()=>ctx.parseCSV(buf('X,Y\n1,2\n3,4\n5,6\n7,8'),'large.csv',n=>{assert.equal(n,4);return 2;})]){
+    const s=await parse();assert.equal(s.n,2);assert.equal(s.originalEventCount,4);assert.deepEqual(Array.from(s.data[0]),[1,7]);assert.deepEqual(Array.from(s.data[1]),[2,8]);
+  }
+  assert.equal(await ctx.parseFCS(fcs(),'skip.fcs',()=>0),null);
+  assert.equal(await ctx.parseCSV(buf('X\n1\n2'),'skip.csv',()=>0),null);
+});
+test('Large CSV cap returns exactly 500,000 events including both ends',async()=>{
+  const total=500003;const s=await ctx.parseCSV(buf('X\n'+Array.from({length:total},(_,i)=>i).join('\n')),'large.csv',n=>{assert.equal(n,total);return 500000;});
+  assert.equal(s.n,500000);assert.equal(s.data[0][0],0);assert.equal(s.data[0][499999],total-1);
+});
+test('Compensation preview uses sampled raw values without mutating the sample',()=>{
+  const sample={n:3,params:['A','B'],paramDetectors:['A','B'],rawData:[[10,20,30],[3,6,9]],data:[[99,99,99],[99,99,99]]};
+  const before=JSON.stringify(sample),state={enabled:true,channels:['A','B'],matrix:[[100,10],[0,100]]};
+  const p=ctx.compensationPreviewSample(sample,state,2);
+  assert.equal(p.n,2);assert.deepEqual(Array.from(p.data[1]),[2,6]);assert.deepEqual(Array.from(p.rawData[1]),[3,9]);assert.equal(JSON.stringify(sample),before);
+  assert.throws(()=>ctx.compensationPreviewSample(sample,{...state,matrix:[[100,100],[100,100]]}),/singular/i);
+});
+test('Polygon edge selection handles closing edge, nearest edge and misses',()=>{
+  const pts=[{x:0,y:0},{x:100,y:0},{x:100,y:100},{x:0,y:100}];
+  assert.equal(ctx.polygonEdgeAt(pts,50,2),0);assert.equal(ctx.polygonEdgeAt(pts,2,50),3);assert.equal(ctx.polygonEdgeAt(pts,50,50),-1);
+});
+
+test('Group copies retain ancestor filters, copy descendants and leave originals independent',()=>{
+  run(`sampleGroups=[{id:'group',name:'Treated',sampleIds:['a']}];samples=[{id:'a',n:2,params:['X','Y'],data:[[2,8],[2,8]]},{id:'b',n:2,params:['X','Y'],data:[[2,8],[2,8]]}];gates=[{id:'root',name:'Root',type:'rect',parentId:null,def:{x0:0,y0:0,x1:5,y1:5},xParam:'X',yParam:'Y'},{id:'child',name:'Child',type:'rect',parentId:'root',def:{x0:0,y0:0,x1:10,y1:10},xParam:'X',yParam:'Y'},{id:'leaf',name:'Leaf',type:'rect',parentId:'child',def:{x0:0,y0:0,x1:4,y1:4},xParam:'X',yParam:'Y'}];`);
+  const copied=ctx.copyGateBranchToGroup('child','group');
+  assert.equal(run('gates.length'),6);assert.notEqual(copied.parentId,'root');
+  assert.equal(ctx.makePopulationFilter(copied.id)(run('samples[0]'),0),true);
+  assert.equal(ctx.makePopulationFilter(copied.id)(run('samples[0]'),1),false);
+  assert.equal(ctx.makePopulationFilter(copied.id)(run('samples[1]'),0),false);
+  copied.def.x1=3;assert.equal(run("gates.find(g=>g.id==='child').def.x1"),10);
+  ctx.copyGateBranchToGroup('child','group');assert.equal(run('gates.length'),6);
+  run("sampleGroups[0].sampleIds=['b']");assert.equal(ctx.makePopulationFilter(copied.id)(run('samples[0]'),0),false);assert.equal(ctx.makePopulationFilter(copied.id)(run('samples[1]'),0),true);
+});
+test('Group roots filter visible samples and events, including empty groups',()=>{
+  run("currentPopulationId='group';visibleSampleIds=new Set(['a','b']);ui.fileList={children:[{dataset:{sampleId:'a'}},{dataset:{sampleId:'b'}}]};");
+  assert.deepEqual(Array.from(ctx.visibleSamples(),s=>s.id),['b']);assert.equal(ctx.makePopulationFilter('group')(run('samples[0]'),0),false);
+  run('sampleGroups[0].sampleIds=[]');assert.equal(ctx.visibleSamples().length,0);
+  run('currentPopulationId=null;sampleGroups=[];gates=[];');
+});
+test('Workspace validates group membership and persists group assignments and selection',()=>{
+  const w=workspace();w.sampleGroups=[{id:'sg',name:'Treated',sampleIds:['s1']}];w.gates[0].groupId='sg';w.currentPopulationId='sg';
+  const restored=ctx.prepareWorkspace(w);assert.equal(restored.sampleGroups[0].name,'Treated');assert.equal(restored.gates[0].groupId,'sg');assert.equal(restored.currentPopulationId,'sg');
+  const bad=JSON.parse(JSON.stringify(w));bad.sampleGroups[0].sampleIds=['missing'];assert.throws(()=>ctx.prepareWorkspace(bad),/group/i);
+  const badRef=JSON.parse(JSON.stringify(w));badRef.gates[0].groupId='missing';assert.throws(()=>ctx.prepareWorkspace(badRef),/group/i);
+  assert.equal(ctx.prepareWorkspace(workspace()).sampleGroups.length,0);
+});
+
+test('Colored group gates appear in all-events views only for member rows',()=>{
+  run(`sampleGroups=[{id:'sg',name:'Group 1',color:'#ab1234',sampleIds:['a','c']}];samples=['a','b','c'].map(id=>({id}));visibleSampleIds=new Set(['a','b','c']);currentPopulationId=null;axis={xParam:'X',yParam:'Y'};ui.plotType.value='scatter';gates=[{id:'groupGate',groupId:'sg',parentId:null,xParam:'X',yParam:'Y'}];`);
+  const g=run('gates[0]');assert.equal(ctx.gateColor(g),'#ab1234');assert.equal(ctx.gateVisibleForCurrentAxes(g),true);assert.equal(ctx.gateVisibleForCurrentAxes(g,'b'),false);assert.equal(ctx.gateVisibleForCurrentAxes(g,'a'),true);
+  assert.deepEqual(JSON.parse(JSON.stringify(ctx.gateOffsetBands(g,run('samples'),10,300))),[{y:10,h:100},{y:210,h:100}]);
+  run("visibleSampleIds=new Set(['b'])");assert.equal(ctx.gateVisibleForCurrentAxes(g),false);
+  run('sampleGroups=[];gates=[];currentPopulationId=null');
+});
+
+test('Percent cache survives switching groups and reports empty parents safely',()=>{
+  run(`sampleGroups=[{id:'a',name:'Group 1',color:'#8b5cf6',sampleIds:['s1']},{id:'b',name:'Group 2',sampleIds:['s2']}];samples=['s1','s2'].map(id=>({id,name:id,n:2,params:['X','Y'],data:[[1,9],[1,9]]}));visibleSampleIds=new Set(['s1','s2']);ui.fileList={children:samples.map(s=>({dataset:{sampleId:s.id}}))};gates=['a','b'].map((groupId,i)=>({id:'gate'+i,name:'Cells',groupId,type:'rect',parentId:null,xParam:'X',yParam:'Y',def:{x0:0,y0:0,x1:5,y1:5}}));currentPopulationId='b';gatePercentCacheDirty=true;`);
+  assert.equal(ctx.gatePercentTextForSample(run('gates[1]'),'s2'),'50.00%');
+  run('currentPopulationId=null');assert.equal(ctx.gatePercentTextForSample(run('gates[0]'),'s1'),'50.00%');assert.equal(ctx.gatePercentTextForSample(run('gates[0]'),'s2'),'N/A');
+  assert.notEqual(ctx.defaultGroupColor(),'#8b5cf6');
+});
+test('Group CSVs identify membership and populations without unrelated sample rows',()=>{
+  const csv=ctx.statisticsCSV(['a','b','gate0','gate1'],[],['events'],'a');
+  assert.match(csv,/sample,sample_groups,gate_group,gate,gate_path,events/);assert.match(csv,/s1,Group 1,Group 1,Cells,Cells,1/);assert.ok(!csv.includes('s2,'));
+  const pop=ctx.populationCSV('gate0');assert.match(pop,/sample_groups,population_group,population/);assert.match(pop,/s1,Group 1,Group 1,Cells,1,1/);assert.ok(!pop.includes('s2,'));
+  run('sampleGroups=[];gates=[];currentPopulationId=null');
+});
+
+test('CSV all-sample exports omit nonmember gates and preserve overlapping group rows',()=>{
+  run(`sampleGroups=[{id:'ga',name:'Group A',sampleIds:['s1','s2']},{id:'gb',name:'Group B',sampleIds:['s2']}];samples=['s1','s2','outside'].map(id=>({id,name:id,n:1,params:['X','Y'],data:[[1],[1]]}));visibleSampleIds=new Set(samples.map(s=>s.id));ui.fileList={children:samples.map(s=>({dataset:{sampleId:s.id}}))};gates=['ga','gb'].map((groupId,i)=>({id:'g'+i,name:'Cells',groupId,type:'rect',parentId:null,xParam:'X',yParam:'Y',def:{x0:0,y0:0,x1:5,y1:5}}));currentPopulationId=null;`);
+  const rows=ctx.statisticsCSV(['g0','g1'],[],['events']).trim().split('\n');
+  assert.equal(rows.length,4);assert.ok(rows.some(r=>r.startsWith('s1,Group A,Group A,')));
+  assert.equal(rows.filter(r=>r.startsWith('s2,')).length,2);assert.ok(!rows.some(r=>r.startsWith('outside,')));
+  const pop=ctx.populationCSV('g1').trim().split('\n');assert.equal(pop.length,2);assert.ok(pop[1].startsWith('s2,'));
+  run('sampleGroups=[];gates=[];currentPopulationId=null');
 });

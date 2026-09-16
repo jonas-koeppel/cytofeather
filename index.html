@@ -372,6 +372,9 @@
     .pseudocolorToggle input:checked::before{transform:translateX(13px);background:#fff}
     .pseudocolorToggle input:focus-visible{outline:2px solid var(--text);outline-offset:3px}
     @media(hover:none){.tree .gateDelete{opacity:1}}
+    .sampleGroupLink{display:inline-block;width:auto;height:auto;margin-top:12px;padding:0;background:transparent;border:0;border-radius:0;box-shadow:none;color:var(--muted);font-size:12px;font-weight:400;cursor:pointer}
+    .sampleGroupLink:hover{background:transparent;color:var(--text);text-decoration:underline;text-underline-offset:3px}
+    .sampleGroupLink:focus-visible{outline:2px solid var(--muted);outline-offset:4px}
   </style>
   <script defer src="./vendor/jspdf.umd.min.js"></script>
 </head>
@@ -425,9 +428,18 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="populationExportModal">
+    <div class="modal-content"><h4>Population CSV</h4>
+      <label for="populationExportChoice">Population to export</label><select id="populationExportChoice"></select>
+      <p class="hint">Exports events from checked samples that belong to this population. When groups exist, columns identify sample membership, the population group, and its gate path. Overlapping groups do not duplicate events.</p>
+      <div class="modal-footer"><button id="cancelPopulationExport" class="secondary" type="button">Cancel</button><button id="confirmPopulationExport" type="button">Export CSV</button></div>
+    </div>
+  </div>
   <div class="modal-overlay" id="statsExportModal">
     <div class="modal-content stats-export-modal">
       <h4>Statistics Export</h4>
+      <label for="statsExportScope">Sample scope</label><select id="statsExportScope"></select>
+      <p class="hint">One row per checked sample and selected population. Group populations include members only. Group names and gate paths distinguish copied gates; overlapping groups have separate population rows.</p>
       <div class="exportOptionGrid">
         <div>
           <label>Gates</label>
@@ -456,8 +468,8 @@
       <h4>Gating strategy</h4>
       <p class="hint" id="strategySummary"></p>
       <div class="ctrlRow">
-        <div><label for="strategyMode">Sample layout</label><select id="strategyMode"><option value="overlay">Overlay</option><option value="grid">Grid - one row per sample</option></select></div>
-        <div><label for="strategyColumns">Panels per page</label><select id="strategyColumns"><option>3</option><option>4</option><option selected>5</option><option>6</option></select></div>
+        <div><label for="strategyMode">Sample layout</label><select id="strategyMode"><option value="overlay">Overlay - one row per sample group</option><option value="grid">Grid - one row per sample</option></select></div>
+        <div><label for="strategyColumns">Columns per page</label><select id="strategyColumns"><option>3</option><option>4</option><option selected>5</option><option>6</option></select></div>
       </div>
       <label class="compensationToggle" style="margin-top:18px"><input type="checkbox" id="strategyDensity"> Pseudocolor density</label>
       <label for="strategyPalette">Density palette</label>
@@ -468,6 +480,30 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="sampleGroupsModal">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="sampleGroupsTitle">
+      <h4 id="sampleGroupsTitle">Sample groups</h4>
+      <label for="sampleGroupSelect">Group</label><select id="sampleGroupSelect"></select>
+      <label for="sampleGroupName" style="margin-top:12px">Name</label><input id="sampleGroupName" type="text" placeholder="e.g. Treated samples">
+      <label for="sampleGroupColor" style="margin-top:12px">Group color</label><input id="sampleGroupColor" type="color" value="#8b5cf6" style="width:48px;height:32px;padding:3px">
+      <label style="margin-top:12px">Samples</label><div id="sampleGroupMembers" class="compensationChannels" style="max-height:240px;overflow:auto"></div>
+      <p class="hint">Drag a gate onto a group or right-click a gate and choose a group. This copies the gate, its ancestors and its child gates; the originals stay unchanged. Group gates share edits across their member samples.</p>
+      <p id="sampleGroupFeedback" role="status" class="hint"></p>
+      <div class="modal-footer" style="flex-wrap:wrap"><button id="deleteSampleGroup" class="secondary" type="button">Delete group and its gates</button><button id="cancelSampleGroup" class="secondary" type="button">Cancel</button><button id="saveSampleGroup" type="button">Save group</button></div>
+    </div>
+  </div>
+  <div class="modal-overlay" id="largeImportModal">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="largeImportTitle">
+      <h4 id="largeImportTitle">Large sample</h4>
+      <p id="largeImportMessage"></p>
+      <p class="hint">Importing all events can slow plotting and compensation and use substantial memory. The 500,000-event option samples evenly across the file; statistics and exports will use only those imported events.</p>
+      <div class="modal-footer" style="flex-wrap:wrap">
+        <button id="largeImportCancel" class="secondary" type="button">Skip file</button>
+        <button id="largeImportAll" class="secondary" type="button">Import all events</button>
+        <button id="largeImportCap" type="button">Import 500,000</button>
+      </div>
+    </div>
+  </div>
   <div class="modal-overlay" id="compensationModal">
     <div class="modal-content compensation-modal" role="dialog" aria-modal="true" aria-labelledby="compensationTitle">
       <div class="compensationHead">
@@ -492,6 +528,16 @@
         <span>Rows: source &nbsp; Columns: detector</span>
       </div>
       <div id="compensationMatrixWrap" class="compensationMatrixWrap"></div>
+      <section style="margin-top:16px" aria-label="Compensation preview">
+        <label>Live preview</label>
+        <div class="compPreviewControls" style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px">
+          <div><label for="compPreviewSample">Sample</label><select id="compPreviewSample"></select></div>
+          <div><label for="compPreviewX">X detector</label><select id="compPreviewX"></select></div>
+          <div><label for="compPreviewY">Y detector</label><select id="compPreviewY"></select></div>
+        </div>
+        <canvas id="compPreviewCanvas" width="660" height="242" role="img" aria-label="Raw and draft compensated scatter plots with shared linear axes" style="display:block;width:100%;max-width:660px;height:auto;margin:10px auto 0;border-radius:0"></canvas>
+        <p id="compPreviewNote" class="hint" role="status"></p>
+      </section>
       <div id="compensationFeedback" class="compensationFeedback" role="status"></div>
       <div class="modal-footer">
         <button id="compensationResetMatrix" class="secondary" type="button">Clear matrix</button>
@@ -501,7 +547,7 @@
     </div>
   </div>
 
-  <div id="gateApplyMenu" class="contextMenu" role="menu"></div>
+  <div id="gateApplyMenu" class="contextMenu" role="menu" style="max-height:calc(100dvh - 16px);overflow:auto"></div>
   <div class="axisPopover plotStylePopover" id="plotStyleMenu" role="dialog" aria-hidden="true">
     <div class="popoverHead">
       <strong id="plotStyleTitle">Plot Style</strong>
@@ -547,13 +593,13 @@
           <span>Add Files</span>
         </label>
         <div class="workspaceWrap">
-          <button id="workspaceMenuButton" class="toolbarButton" type="button" aria-label="Workspace" aria-expanded="false" aria-controls="workspaceMenu">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h12l2 2v14H5z"/><path d="M8 4v6h8V4M8 20v-6h8v6"/></svg>
+          <button id="workspaceMenuButton" class="toolbarButton" type="button" aria-label="Workspace" aria-haspopup="menu" aria-expanded="false" aria-controls="workspaceMenu">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/></svg>
             <span>Workspace</span>
           </button>
-          <div class="workspaceMenu" id="workspaceMenu">
-            <button id="saveWorkspace" type="button">💾 Save Workspace</button>
-            <button id="loadWorkspace" type="button">Load Workspace</button>
+          <div class="workspaceMenu" id="workspaceMenu" role="menu" aria-label="Workspace">
+            <button id="loadWorkspace" type="button" role="menuitem">Load Workspace…</button>
+            <button id="saveWorkspace" type="button" role="menuitem">Save Workspace</button>
           </div>
         </div>
         <div class="exportWrap">
@@ -706,8 +752,10 @@
       <label style="margin-top:12px">Gate hierarchy</label>
       <div id="gateTree" class="tree"></div>
       <div id="gatesEmptyState" class="emptyState">No gates yet. Choose a gate tool and draw on the plot.</div>
+      <button id="sampleGroupButton" class="sampleGroupLink" type="button">＋ Sample group</button>
       <details class="quickGuide">
         <summary>Quick guide</summary>
+        <p>Polygon editing: select a gate, then Ctrl/⌘-click an edge to add a point or right-click a vertex to remove it (minimum three). While drawing, right-click to undo the last point.</p>
         <p>Start with <b>Example Data</b> in Files, or add your own FCS or CSV files. Choose your parameters and plot type in Data.</p>
         <p>Choose a gate tool, then drag on the plot. For a polygon, click its corners and press Enter or double-click to finish. Double-click a gate to view its population and draw child gates.</p>
         <p>Right-click gates to apply them across samples. Click an axis label to change its range; right-click the plot to adjust its style.</p>
@@ -805,6 +853,7 @@ const ctx = ui.plot.getContext('2d');
 const DEFAULT_PLOT_SIZE = { w: 900, h: 600 };
 let plotDisplaySize = { ...DEFAULT_PLOT_SIZE, dpr: 1 };
 
+let sampleGroups = [];
 let samples = []; 
 let visibleSampleIds = new Set();
 let gates = [];
@@ -915,6 +964,9 @@ function openModal(modal) {
   (modal.querySelector('input:not([disabled]), button:not([disabled]), select') || modal).focus();
 }
 function closeModal(modal) {
+  if (modal.id === 'largeImportModal' && pendingImportDecision) {
+    const resolve = pendingImportDecision; pendingImportDecision = null; resolve(0);
+  }
   modal.classList.remove('visible');
   document.querySelector('.app').inert = false;
   const opener = modalOpeners.get(modal);
@@ -1133,7 +1185,71 @@ function setDraftValue(source, target, value) {
   compensationDraft.values[source][target] = value;
 }
 
+function compensationPreviewSample(sample, state, limit = 2500) {
+  const count = Math.min(sample.n, limit), raw = sample.rawData || sample.data;
+  const data = raw.map(column => Float64Array.from({length:count}, (_,i) => column[importEventIndex(i,count,sample.n)]));
+  const preview = {...sample, n:count, data, rawData:data};
+  applyCompensationToSample(preview, state);
+  return preview;
+}
+function refreshCompensationPreviewControls() {
+  const channels = Array.from(compensationDraft.selected);
+  const controls = ['compPreviewSample','compPreviewX','compPreviewY'].map(byId);
+  const previous = controls.map(el=>el.value);
+  controls.forEach(el=>el.replaceChildren());
+  samples.forEach(s=>controls[0].add(new Option(s.name,s.id)));
+  channels.forEach(c=>{ controls[1].add(new Option(c,c)); controls[2].add(new Option(c,c)); });
+  controls.forEach((el,i)=>{
+    if ([...el.options].some(o=>o.value===previous[i])) el.value=previous[i];
+    else el.selectedIndex = i===2 && channels.length>1 ? 1 : 0;
+  });
+  renderCompensationPreview();
+}
+function renderCompensationPreview() {
+  if (!compensationDraft) return;
+  const canvas=byId('compPreviewCanvas'), c=canvas.getContext('2d'), note=byId('compPreviewNote');
+  c.clearRect(0,0,canvas.width,canvas.height);
+  canvas.style.display='none';
+  const channels=Array.from(compensationDraft.selected);
+  const sample=samples.find(s=>s.id===byId('compPreviewSample').value);
+  if(!sample || channels.length<2) {note.textContent='Choose at least two channels to preview compensation.';return;}
+  if(channels.some(ch=>parameterIndexForDetector(sample,ch)<0)) {note.textContent='This sample does not contain all selected channels. Choose another sample or adjust the channels.';return;}
+  const state={enabled:compensationDraft.enabled,channels,matrix:channels.map(a=>channels.map(b=>draftValue(a,b)))};
+  let preview;
+  try { preview=compensationPreviewSample(sample,state); }
+  catch(error) {note.textContent=`Preview unavailable: ${error.message}`;return;}
+  canvas.style.display='block';
+  const ix=parameterIndexForDetector(sample,byId('compPreviewX').value), iy=parameterIndexForDetector(sample,byId('compPreviewY').value);
+  const raw=preview.rawData, adjusted=preview.data;
+  function range(index) {
+    let min=0,max=0;
+    [raw,adjusted].forEach(data=>{ for(const v of data[index]) if(Number.isFinite(v)) {min=Math.min(min,v);max=Math.max(max,v);} });
+    const pad=(max-min || 1)*.08;return [min-pad,max+pad];
+  }
+  const [xmin,xmax]=range(ix),[ymin,ymax]=range(iy);
+  const css=getComputedStyle(document.body), text=css.getPropertyValue('--text').trim(), muted=css.getPropertyValue('--muted').trim();
+  [raw,adjusted].forEach((data,k)=>{
+    const x=62+k*330,y=32,w=245,h=162;
+    c.fillStyle=text;c.font='600 12px sans-serif';c.textAlign='center';c.fillText(k?(state.enabled?'Draft compensation':'Compensation off'):'Raw values',x+w/2,17);
+    c.strokeStyle=muted;c.lineWidth=.6;c.strokeRect(x,y,w,h);
+    const px=v=>x+(v-xmin)/(xmax-xmin)*w,py=v=>y+h-(v-ymin)/(ymax-ymin)*h;
+    c.save();c.beginPath();c.rect(x,y,w,h);c.clip();
+    c.setLineDash([3,3]);c.beginPath();c.moveTo(px(0),y);c.lineTo(px(0),y+h);c.moveTo(x,py(0));c.lineTo(x+w,py(0));c.stroke();c.setLineDash([]);
+    c.fillStyle=sample.color;c.globalAlpha=.5;c.beginPath();
+    for(let i=0;i<preview.n;i++){const vx=data[ix][i],vy=data[iy][i];if(!Number.isFinite(vx)||!Number.isFinite(vy))continue;const a=px(vx),b=py(vy);c.moveTo(a+1,b);c.arc(a,b,1,0,Math.PI*2);}
+    c.fill();c.restore();
+    c.fillStyle=muted;c.font='10px sans-serif';
+    [0,.5,1].forEach(t=>{c.textAlign='center';c.fillText(formatNum(xmin+(xmax-xmin)*t),x+w*t,y+h+14);c.textAlign='right';c.fillText(formatNum(ymin+(ymax-ymin)*t),x-6,y+h-h*t+3);});
+    const shorten=s=>s.length>30?s.slice(0,27)+'…':s;
+    c.fillStyle=text;c.font='11px sans-serif';c.textAlign='center';c.fillText(shorten(byId('compPreviewX').value),x+w/2,231);
+    c.save();c.translate(k*330+13,y+h/2);c.rotate(-Math.PI/2);c.fillText(shorten(byId('compPreviewY').value),0,0);c.restore();
+  });
+  note.textContent=`${preview.n.toLocaleString()} evenly sampled events from the whole sample · shared linear axes, including negative values · draft changes take effect only after Apply.`;
+}
+['compPreviewSample','compPreviewX','compPreviewY'].forEach(id=>byId(id).addEventListener('change',renderCompensationPreview));
+
 function renderCompensationMatrix() {
+  refreshCompensationPreviewControls();
   ui.compensationMatrixWrap.innerHTML = '';
   const channels = Array.from(compensationDraft.selected);
   if (channels.length < 2) {
@@ -1183,6 +1299,7 @@ function renderCompensationMatrix() {
         input.addEventListener('input', () => {
           const value = Number(input.value);
           if (Number.isFinite(value)) setDraftValue(source, target, value);
+          renderCompensationPreview();
         });
         cell.append(input);
       }
@@ -1258,7 +1375,7 @@ ui.compensationCancel.addEventListener('click', closeCompensationModal);
 ui.compensationModal.addEventListener('mousedown', event => {
   if (event.target === ui.compensationModal) closeCompensationModal();
 });
-ui.compensationEnabled.addEventListener('change', () => { if (compensationDraft) compensationDraft.enabled = ui.compensationEnabled.checked; });
+ui.compensationEnabled.addEventListener('change', () => { if (compensationDraft) { compensationDraft.enabled = ui.compensationEnabled.checked; renderCompensationPreview(); } });
 ui.compensationSelectFluorescence.addEventListener('click', () => {
   compensationDraft.selected = new Set(defaultCompensationChannelKeys());
   renderCompensationChannels();
@@ -1296,13 +1413,34 @@ ui.compensationApply.addEventListener('click', async () => {
 });
 
 // ---------------------------- FCS / CSV Loader ----------------------------
+let pendingImportDecision = null;
+let importDecisionQueue = Promise.resolve();
+function chooseImportEventCount(count, name) {
+  if (count <= 500000) return Promise.resolve(count);
+  const decision = importDecisionQueue.then(() => new Promise(resolve => {
+    pendingImportDecision = resolve;
+    byId('largeImportMessage').textContent = `${name} contains ${count.toLocaleString()} events. How many would you like to import?`;
+    byId('largeImportAll').onclick = () => finish(count);
+    byId('largeImportCap').onclick = () => finish(500000);
+    byId('largeImportCancel').onclick = () => finish(0);
+    function finish(n) { pendingImportDecision = null; closeModal(byId('largeImportModal')); resolve(n); }
+    openModal(byId('largeImportModal'));
+    byId('largeImportCap').focus();
+  }));
+  importDecisionQueue = decision.then(() => {});
+  return decision;
+}
+function importEventIndex(index, count, total) {
+  return count === total ? index : count <= 1 ? 0 : Math.floor(index * (total-1) / (count-1));
+}
 async function addSampleFromBuffer(buffer, name) {
   const ext = name.toLowerCase().split('.').pop();
   let sample;
-  if (ext==='csv') sample = await parseCSV(buffer, name);
-  else if (ext==='fcs') sample = await parseFCS(buffer, name);
+  if (ext==='csv') sample = await parseCSV(buffer, name, chooseImportEventCount);
+  else if (ext==='fcs') sample = await parseFCS(buffer, name, chooseImportEventCount);
   else throw new Error('Choose an .fcs or .csv file.');
 
+  if (!sample) return; // User skipped a large file.
   sample.name = sample.name.replace(/\.(fcs|csv)$/i, '');
   sample.id = crypto.randomUUID();
   sample.color = palette[samples.length % palette.length];
@@ -1320,6 +1458,7 @@ function finishSampleLoad() {
   ui.yParam.dispatchEvent(new Event('change'));
 }
 async function loadSelectedFiles(files) {
+  const initialCount = samples.length;
   for (let i=0;i<files.length;i++) {
     const f = files[i];
     try{
@@ -1330,7 +1469,7 @@ async function loadSelectedFiles(files) {
       console.error(err);
     }
   }
-  finishSampleLoad();
+  if (samples.length > initialCount) finishSampleLoad();
 }
 async function loadExampleData() {
   if (window.location.protocol === 'file:') {
@@ -1378,6 +1517,7 @@ function refreshFileList(){
     row.className='fileRow';
     row.draggable = true;
     row.dataset.sampleId = s.id;
+    if (s.originalEventCount > s.n) row.title = `${s.n.toLocaleString()} events sampled evenly from ${s.originalEventCount.toLocaleString()} original events. Statistics use imported events only.`;
 
     const chk = Object.assign(document.createElement('input'),{type:'checkbox', checked:visibleSampleIds.has(s.id)});
     chk.setAttribute('aria-label', `Show ${s.name}`);
@@ -1431,6 +1571,7 @@ function refreshFileList(){
         if(confirm(`Remove ${s.name}?`)){
             samples = samples.filter(samp => samp.id !== s.id);
             visibleSampleIds.delete(s.id);
+            sampleGroups.forEach(group=>group.sampleIds=group.sampleIds.filter(id=>id!==s.id));
             const removedGateIds = new Set(gates.filter(g => gateEffectiveSampleId(g) === s.id).map(g => g.id));
             gates = gates.filter(g => !removedGateIds.has(g.id));
             gates.forEach(g => { if (g.excludeSampleIds) g.excludeSampleIds = g.excludeSampleIds.filter(id => id !== s.id); });
@@ -1448,7 +1589,9 @@ function refreshFileList(){
     eventCount.className = 'hint';
     eventCount.textContent = `(${s.n.toLocaleString()})`;
 
-    row.append(chk, sw, name, eventCount, removeBtn);
+    const colorStack=document.createElement('span');colorStack.className='sampleColorStack';colorStack.style.cssText='position:relative;display:inline-flex;flex-shrink:0;width:10px;height:12px';
+    sw.style.cssText+=';position:relative;z-index:4';colorStack.append(sw);
+    row.append(chk, colorStack, name, eventCount, removeBtn);
     ui.fileList.append(row);
   });
   updateCompensationStatus();
@@ -1608,7 +1751,8 @@ function fillAxisPopoverOptions(){
 function refreshPopulationOptions(){
   ui.population.innerHTML='';
   const all = document.createElement('option'); all.value = 'ALL'; all.textContent='All events'; ui.population.append(all);
-  gates.forEach(g=>{ const o=document.createElement('option'); const effectiveSampleId = gateEffectiveSampleId(g); o.value=g.id; o.textContent=effectiveSampleId ? `${g.name} (${sampleName(effectiveSampleId)})` : g.name; ui.population.append(o); });
+  sampleGroups.forEach(group=>{const o=new Option(group.name,group.id);ui.population.append(o);});
+  gates.forEach(g=>{ const o=document.createElement('option'); const effectiveSampleId = gateEffectiveSampleId(g); o.value=g.id; o.textContent=(effectiveSampleId ? `${g.name} (${sampleName(effectiveSampleId)})` : g.name) + (gateSampleGroupId(g) ? ` · ${sampleGroups.find(group=>group.id===gateSampleGroupId(g))?.name || ''}` : ''); ui.population.append(o); });
   ui.population.value = currentPopulationId || 'ALL';
 }
 
@@ -2317,6 +2461,7 @@ function drawPseudocolorScatterCell(targetCtx, cellArea, sample, popFilter) {
 }
 
 function render(targetCtx = ctx, isExport = false, exportOptions = {}){
+    if (!isExport) syncFileGroupMarkers();
     if (!isExport) ui.scatterPseudocolorToggle.checked = !!plotStyle[ui.plotType.value === 'scatter-grid' ? 'scatterGridPseudocolor' : 'scatterPseudocolor'];
   if (!isExport) { 
     setAxisFromUI();
@@ -2387,7 +2532,7 @@ function drawGatesInGridCell(targetCtx, cellArea, sample, isExport = false, expo
             const stroke = gateColor(g);
             targetCtx.strokeStyle = stroke;
             targetCtx.lineWidth = editingGate.id === g.id ? 2 : 1;
-            targetCtx.fillStyle = gateEffectiveSampleId(g) ? hexToRGBA(stroke, 0.08) : getComputedStyle(document.body).getPropertyValue('--gate-fill');
+            targetCtx.fillStyle = (gateSampleGroupId(g) || gateEffectiveSampleId(g)) ? hexToRGBA(stroke, 0.08) : getComputedStyle(document.body).getPropertyValue('--gate-fill');
             if (g.type==='rect'){
                 const {x0,y0,x1,y1} = g.def; const rx = x + xs.fwd(Math.min(x0,x1)); const ry = y + h - ys.fwd(Math.max(y0,y1)); const rw = Math.abs(xs.fwd(x1)-xs.fwd(x0)); const rh = Math.abs(ys.fwd(y1)-ys.fwd(y0));
                 targetCtx.beginPath(); targetCtx.rect(rx, ry, rw, rh); targetCtx.fill(); targetCtx.stroke();
@@ -2618,6 +2763,11 @@ function drawHistPlot(targetCtx, isExport, isOffset, exportOptions, width, heigh
     drawPlotBorder(targetCtx, area);
 }
 
+function gateOffsetBands(g, plotSamples, y, height) {
+  if (!gateSampleGroupId(g) && !gateEffectiveSampleId(g)) return [{y,h:height}];
+  const rowHeight=height / (plotSamples.length || 1);
+  return plotSamples.flatMap((sample,i)=>gateAppliesToSample(g,sample.id) ? [{y:y+i*rowHeight,h:rowHeight}] : []);
+}
 function drawHistOffsetSegmentGates(targetCtx, width, height, isExport = false, exportOptions = {}) {
     const area = plotArea(width, height);
     const {x,y,w,h} = area;
@@ -2637,10 +2787,11 @@ function drawHistOffsetSegmentGates(targetCtx, width, height, isExport = false, 
         const rx = x + xs.fwd(Math.min(x0, x1));
         const rw = Math.abs(xs.fwd(x1) - xs.fwd(x0));
         if (showGates) {
+          const bands=gateOffsetBands(g,visSamples,y,h);
+          bands.forEach(({y:gy,h:gh})=>{
             targetCtx.save();
             const stroke = gateColor(g, getComputedStyle(document.body).getPropertyValue('--gate-selection'));
-            const gy = sampleIndex >= 0 ? y + sampleIndex * sampleHeight : y;
-            const gh = sampleIndex >= 0 ? sampleHeight : h;
+
             targetCtx.fillStyle = hexToRGBA(stroke, effectiveSampleId ? 0.08 : 0.06);
             targetCtx.strokeStyle = stroke;
             targetCtx.lineWidth = editingGate.id === g.id ? 2 : 1.15;
@@ -2648,6 +2799,7 @@ function drawHistOffsetSegmentGates(targetCtx, width, height, isExport = false, 
             targetCtx.beginPath(); targetCtx.moveTo(rx, gy); targetCtx.lineTo(rx, gy+gh); targetCtx.moveTo(rx+rw, gy); targetCtx.lineTo(rx+rw, gy+gh); targetCtx.stroke();
             targetCtx.restore();
             if (editingGate.id === g.id) drawGateHandles(targetCtx, g, width, height, {x, y: gy, w, h: gh});
+          });
         }
         if (showPercent) {
             const labels = getCanvasHistOffsetGateLabelLayouts(width, height, targetCtx).filter(l => l.gateId === g.id);
@@ -2674,7 +2826,7 @@ function drawGates(targetCtx, width, height, isExport = false, exportOptions = {
         const baseCol = isEditing ? getComputedStyle(document.body).getPropertyValue('--gate-selection') : stroke;
         targetCtx.strokeStyle = baseCol;
         targetCtx.lineWidth = isEditing ? 2 : 1.25;
-        targetCtx.fillStyle = gateEffectiveSampleId(g) ? hexToRGBA(stroke, 0.08) : getComputedStyle(document.body).getPropertyValue('--gate-fill');
+        targetCtx.fillStyle = (gateSampleGroupId(g) || gateEffectiveSampleId(g)) ? hexToRGBA(stroke, 0.08) : getComputedStyle(document.body).getPropertyValue('--gate-fill');
         
         if (g.type==='rect'){
             const {x0,y0,x1,y1} = g.def; const rx = x + xs.fwd(Math.min(x0,x1)); const ry = y + h - ys.fwd(Math.max(y0,y1)); const rw = Math.abs(xs.fwd(x1)-xs.fwd(x0)); const rh = Math.abs(ys.fwd(y1)-ys.fwd(y0));
@@ -2756,9 +2908,40 @@ function getGateHandles(g) {
     return [];
 }
 
+function checkedSamples() {
+  return Array.from(ui.fileList.children).map(row=>samples.find(s=>s.id===row.dataset.sampleId)).filter(s=>s && visibleSampleIds.has(s.id));
+}
+function sampleGroupNames(sample) {
+  return sampleGroups.filter(group=>group.sampleIds.includes(sample.id)).map(group=>group.name).join('; ');
+}
+function gateExportPath(g) {
+  const path=[],seen=new Set();
+  while(g && !seen.has(g.id)){seen.add(g.id);path.unshift(g.name);g=gates.find(parent=>parent.id===g.parentId);}
+  return path.join(' > ');
+}
+function defaultGroupColor() {
+  const colors=['#8b5cf6','#4d8f00','#e27624','#0891b2','#d34b80','#476bd6'];
+  return colors.find(color=>!sampleGroups.some(group=>group.color===color)) || colors[sampleGroups.length % colors.length];
+}
+function syncFileGroupMarkers() {
+  Array.from(ui.fileList.children).forEach(row=>{
+    const wrap=row.querySelector('.sampleColorStack');if(!wrap)return;
+    wrap.querySelectorAll('.groupColorMarker').forEach(el=>el.remove());
+    const groups=sampleGroups.filter(group=>group.sampleIds.includes(row.dataset.sampleId));
+    const active=activeSampleGroupId();groups.sort((a,b)=>Number(b.id===active)-Number(a.id===active));
+    wrap.style.width=groups.length?'20px':'10px';
+    groups.slice(0,3).reverse().forEach((group,reverseIndex)=>{
+      const index=Math.min(groups.length,3)-1-reverseIndex, dot=document.createElement('span');dot.className='groupColorMarker';
+      dot.style.cssText=`position:absolute;left:${7+index*3}px;top:3px;width:8px;height:8px;border-radius:50%;background:${group.color||'#8b5cf6'};box-shadow:0 0 0 1px var(--panel);z-index:${3-index}`;
+      dot.title=`Sample group: ${group.name}`;dot.setAttribute('aria-label',dot.title);wrap.append(dot);
+    });
+    wrap.title=groups.length?`Sample groups: ${groups.map(g=>g.name).join(', ')}`:'';
+  });
+}
 function visibleSamples(){ 
+    const group = sampleGroups.find(g=>g.id===activeSampleGroupId());
     const orderedIds = Array.from(ui.fileList.children).map(row => row.dataset.sampleId);
-    return orderedIds.map(id => samples.find(s => s.id === id)).filter(s => s && visibleSampleIds.has(s.id));
+    return orderedIds.map(id => samples.find(s => s.id === id)).filter(s => s && visibleSampleIds.has(s.id) && (!group || group.sampleIds.includes(s.id)));
 }
 function sampleById(sampleId) {
     return samples.find(s => s.id === sampleId) || null;
@@ -2766,6 +2949,91 @@ function sampleById(sampleId) {
 function sampleName(sampleId) {
     return sampleById(sampleId)?.name || 'sample';
 }
+function gateSampleGroupId(g) {
+  const seen = new Set();
+  while (g && !seen.has(g.id)) {
+    if (g.groupId) return g.groupId;
+    seen.add(g.id); g = gates.find(parent => parent.id === g.parentId);
+  }
+  return null;
+}
+function activeSampleGroupId() {
+  return sampleGroups.some(group => group.id === currentPopulationId) ? currentPopulationId : gateSampleGroupId(gates.find(g => g.id === currentPopulationId));
+}
+function selectSampleGroup(groupId) {
+  currentPopulationId = groupId; editingGate.id = null;
+  refreshPopulationOptions(); rebuildGateTree(); syncToolAvailability(); render();
+}
+function copyGateBranchToGroup(gateId, groupId) {
+  if (!sampleGroups.some(group => group.id === groupId)) return null;
+  const source = gates.find(g => g.id === gateId);
+  if (!source || gateSampleGroupId(source) === groupId) return source || null;
+  const original = gates.slice(), copied = new Map();
+  function copy(g) {
+    if (copied.has(g.id)) return copied.get(g.id);
+    const origin = g.sourceGateId || g.id;
+    const existing = gates.find(candidate => candidate.groupId === groupId && candidate.sourceGateId === origin);
+    if (existing) { copied.set(g.id,existing); return existing; }
+    const parent = original.find(p => p.id === g.parentId);
+    const clone = {...JSON.parse(JSON.stringify(g)), id:idGen(), groupId, sourceGateId:origin,
+      sampleId:null, excludeSampleIds:[], parentId:parent ? copy(parent).id : null};
+    gates.push(clone); copied.set(g.id,clone); return clone;
+  }
+  const result = copy(source);
+  const descendants = gateAndDescendantIds(source.id);
+  original.filter(g=>descendants.has(g.id)).forEach(copy);
+  return result;
+}
+function applyGateToGroup(gateId, groupId) {
+  const result = copyGateBranchToGroup(gateId,groupId);
+  if (result) { markGatePercentDirty(); refreshPopulationOptions(); rebuildGateTree(); render(); }
+  return result;
+}
+let groupEditorId = null;
+function openSampleGroups(groupId = null) {
+  const select = byId('sampleGroupSelect'); select.replaceChildren(new Option('New group…',''));
+  sampleGroups.forEach(g=>select.add(new Option(g.name,g.id)));
+  select.value = groupId || ''; loadSampleGroupDraft(); openModal(byId('sampleGroupsModal'));
+}
+function loadSampleGroupDraft() {
+  groupEditorId = byId('sampleGroupSelect').value || null;
+  const group = sampleGroups.find(g=>g.id===groupEditorId);
+  let number=1;while(sampleGroups.some(g=>g.name.toLowerCase()===`group ${number}`)) number++;
+  byId('sampleGroupName').value = group?.name || `Group ${number}`;
+  byId('sampleGroupColor').value = group?.color || defaultGroupColor();
+  byId('sampleGroupFeedback').textContent = '';
+  byId('deleteSampleGroup').hidden = !group;
+  const list = byId('sampleGroupMembers'); list.replaceChildren();
+  samples.forEach(sample=>{
+    const label=document.createElement('label');label.className='compensationChannel';
+    const input=document.createElement('input');input.type='checkbox';input.value=sample.id;input.checked=!!group?.sampleIds.includes(sample.id);
+    label.append(input,document.createTextNode(sample.name));list.append(label);
+  });
+  if(!samples.length) list.textContent='Load samples to add them to a group.';
+}
+byId('sampleGroupButton').addEventListener('click',()=>openSampleGroups());
+byId('sampleGroupSelect').addEventListener('change',loadSampleGroupDraft);
+byId('cancelSampleGroup').addEventListener('click',()=>closeModal(byId('sampleGroupsModal')));
+byId('saveSampleGroup').addEventListener('click',()=>{
+  const name=byId('sampleGroupName').value.trim();
+  if(!name || sampleGroups.some(g=>g.id!==groupEditorId && g.name.toLowerCase()===name.toLowerCase())) {
+    byId('sampleGroupFeedback').textContent='Enter a unique group name.';return;
+  }
+  const color=byId('sampleGroupColor').value;
+  const ids=[...byId('sampleGroupMembers').querySelectorAll('input:checked')].map(input=>input.value);
+  const existing=sampleGroups.find(g=>g.id===groupEditorId);
+  if(existing) {existing.name=name;existing.sampleIds=ids;existing.color=color;}
+  else sampleGroups.push({id:'SG-'+crypto.randomUUID(),name,color,sampleIds:ids});
+  closeModal(byId('sampleGroupsModal'));markGatePercentDirty();refreshPopulationOptions();rebuildGateTree();syncToolAvailability();render();
+});
+byId('deleteSampleGroup').addEventListener('click',()=>{
+  const removed=new Set(gates.filter(g=>gateSampleGroupId(g)===groupEditorId).map(g=>g.id));
+  gates=gates.filter(g=>!removed.has(g.id));sampleGroups=sampleGroups.filter(g=>g.id!==groupEditorId);
+  if(currentPopulationId===groupEditorId || removed.has(currentPopulationId)) currentPopulationId=null;
+  if(removed.has(editingGate.id)) editingGate.id=null;
+  closeModal(byId('sampleGroupsModal'));markGatePercentDirty();refreshPopulationOptions();rebuildGateTree();syncToolAvailability();render();
+});
+
 function gateEffectiveSampleId(g) {
     let cur = g;
     const seen = new Set();
@@ -2777,18 +3045,22 @@ function gateEffectiveSampleId(g) {
     return null;
 }
 function gateAppliesToSample(g, sampleId) {
+    const groupId = gateSampleGroupId(g);
+    if (groupId && !sampleGroups.find(group=>group.id===groupId)?.sampleIds.includes(sampleId)) return false;
     const effectiveSampleId = gateEffectiveSampleId(g);
     if (!effectiveSampleId && sampleId && g.excludeSampleIds?.includes(sampleId)) return false;
     return !effectiveSampleId || effectiveSampleId === sampleId;
 }
 function gateColor(g, fallback = null) {
+    const group=sampleGroups.find(group=>group.id===gateSampleGroupId(g));
+    if(group) return group.color || '#8b5cf6';
     const effectiveSampleId = gateEffectiveSampleId(g);
     if (effectiveSampleId) return sampleById(effectiveSampleId)?.color || fallback || getComputedStyle(document.body).getPropertyValue('--gate-stroke');
     return fallback || getComputedStyle(document.body).getPropertyValue('--gate-stroke');
 }
 function gateSampleIsVisible(g) {
     const effectiveSampleId = gateEffectiveSampleId(g);
-    return !effectiveSampleId || visibleSampleIds.has(effectiveSampleId);
+    return samples.some(s=>visibleSampleIds.has(s.id) && gateAppliesToSample(g,s.id));
 }
 function gridColumnCount(nSamples) {
     const requested = ui.gridCols?.value || 'auto';
@@ -2814,7 +3086,8 @@ function normalizeGate(g) {
 function cloneGateDef(g) {
     return JSON.parse(JSON.stringify(g.def || {}));
 }
-function forkGateForSample(g, sampleId) {
+function forkGateForSample(g, sampleId, force = false) {
+    if (g && gateSampleGroupId(g) && !force) return g;
     if (!g || !sampleId || gateEffectiveSampleId(g)) return g;
     if (!g.excludeSampleIds) g.excludeSampleIds = [];
     if (!g.excludeSampleIds.includes(sampleId)) g.excludeSampleIds.push(sampleId);
@@ -2842,7 +3115,7 @@ function applyGateToSample(gateId, sampleId) {
     const g = gates.find(g => g.id === gateId);
     if (!g || !sampleId) return null;
     const effectiveSampleId = gateEffectiveSampleId(g);
-    if (!effectiveSampleId) return forkGateForSample(g, sampleId);
+    if (!effectiveSampleId && (!gateSampleGroupId(g) || gateAppliesToSample(g,sampleId))) return forkGateForSample(g, sampleId, true);
     if (effectiveSampleId === sampleId) return g;
     const parent = g.parentId ? gates.find(parent => parent.id === g.parentId) : null;
     const parentSampleId = parent ? gateEffectiveSampleId(parent) : null;
@@ -2851,7 +3124,8 @@ function applyGateToSample(gateId, sampleId) {
         id: idGen(),
         name: `${baseGateName(g)} (${sampleName(sampleId)})`,
         sampleId,
-        parentId: parentSampleId && parentSampleId !== sampleId ? null : (g.parentId || null),
+        groupId:null,
+        parentId: (parentSampleId && parentSampleId !== sampleId) || gateSampleGroupId(g) ? null : (g.parentId || null),
         def: cloneGateDef(g),
         labelPos: g.labelPos ? JSON.parse(JSON.stringify(g.labelPos)) : undefined,
         sampleLabelPos: undefined,
@@ -2868,7 +3142,8 @@ function applyGateToAll(gateId) {
     const g = gates.find(g => g.id === gateId);
     if (!g) return null;
     const parent = g.parentId ? gates.find(parent => parent.id === g.parentId) : null;
-    if (parent && gateEffectiveSampleId(parent)) g.parentId = null;
+    if (parent && (gateEffectiveSampleId(parent) || gateSampleGroupId(parent))) g.parentId = null;
+    const branch=gateAndDescendantIds(g.id);gates.filter(item=>branch.has(item.id)).forEach(item=>{item.groupId=null;item.sourceGateId=null;});
     g.sampleId = null;
     g.excludeSampleIds = [];
     g.name = baseGateName(g);
@@ -2942,7 +3217,12 @@ function gateVisibleForCurrentAxes(g, sampleId = null) {
     const isHist = ui.plotType.value.startsWith('hist');
     if (g.xParam !== axis.xParam) return false;
     if (!isHist && g.yParam !== axis.yParam) return false;
-    if ((g.parentId || null) !== (currentPopulationId || null)) return false;
+    const activeGroup=activeSampleGroupId();
+    if (activeGroup && gateSampleGroupId(g) !== activeGroup) return false;
+    const parentPopulation = sampleGroups.some(group=>group.id===currentPopulationId) ? null : currentPopulationId;
+    let parentId=g.parentId || null;
+    if (!activeGroup && gateSampleGroupId(g) && parentId) { const parent=gates.find(p=>p.id===parentId);parentId=parent?.sourceGateId || parentId; }
+    if (parentId !== (parentPopulation || null)) return false;
     if (!gateSampleIsVisible(g)) return false;
     if (sampleId && !gateAppliesToSample(g, sampleId)) return false;
     return true;
@@ -3007,7 +3287,7 @@ function recalculateGatePercentCache() {
         let gateCount = 0;
         let parentCount = 0;
         const bySample = new Map();
-        visibleSamples().forEach(s => {
+        checkedSamples().forEach(s => {
             if (!gateAppliesToSample(g, s.id)) {
                 bySample.set(s.id, null);
                 return;
@@ -3028,14 +3308,14 @@ function recalculateGatePercentCache() {
 function gatePercentText(g) {
     recalculateGatePercentCache();
     const pct = gatePercentCache.get(g.id);
-    if (!isFinite(pct)) return 'N/A';
+    if (!Number.isFinite(pct)) return 'N/A';
     return `${pct.toFixed(2)}%`;
 }
 function gatePercentTextForSample(g, sampleId) {
     recalculateGatePercentCache();
     const bySample = gatePercentBySampleCache.get(g.id);
     const pct = bySample ? bySample.get(sampleId) : null;
-    if (!isFinite(pct)) return 'N/A';
+    if (!Number.isFinite(pct)) return 'N/A';
     return `${pct.toFixed(2)}%`;
 }
 function getGridCellLayouts(width, height) {
@@ -3200,6 +3480,8 @@ function hitTestGatePercentLabel(px, py) {
 // ---------------------------- Population & Stats ----------------------------
 function makePopulationFilter(gateId){
   if (!gateId) return ()=>true;
+  const group = sampleGroups.find(group=>group.id===gateId);
+  if (group) return s=>group.sampleIds.includes(s.id);
   const stack=[]; let g = gates.find(g=>g.id===gateId); while(g){ stack.push(g); g = g.parentId? gates.find(x=>x.id===g.parentId):null; }
   return (s, idx)=> stack.every(G=> gateAppliesToSample(G, s.id) && pointInGate(G, valueOf(s, G.xParam, idx), valueOf(s, G.yParam, idx)));
 }
@@ -3277,7 +3559,7 @@ function openGateApplyMenu(gateId, clientX, clientY) {
     const title = document.createElement('div');
     title.className = 'hint';
     title.style.padding = '6px 8px';
-    title.textContent = 'Apply to sample';
+    title.textContent = 'Apply gate to';
     ui.gateApplyMenu.append(title);
     const allBtn = document.createElement('button');
     allBtn.type = 'button';
@@ -3287,6 +3569,10 @@ function openGateApplyMenu(gateId, clientX, clientY) {
         closeGateApplyMenu();
     });
     ui.gateApplyMenu.append(allBtn);
+    sampleGroups.forEach(group=>{
+        const btn=document.createElement('button');btn.type='button';btn.textContent=`Group: ${group.name}`;
+        btn.addEventListener('click',()=>{applyGateToGroup(gateId,group.id);closeGateApplyMenu();});ui.gateApplyMenu.append(btn);
+    });
     samples.forEach(sample => {
         const btn = document.createElement('button');
         btn.type = 'button';
@@ -3340,19 +3626,21 @@ function rebuildGateTree(){
   root.classList.toggle('is-current', !currentPopulationId);
   const rootIcon = document.createElement('span'); rootIcon.className = 'gateNodeIcon'; rootIcon.innerHTML = gateShapeIcon('all');
   const rootName = document.createElement('span'); rootName.className = 'gateName'; rootName.textContent = 'All events';
-  const selectRoot = () => { currentPopulationId = null; ui.population.value = 'ALL'; editingGate.id = null; rebuildGateTree(); render(); };
+  const selectRoot = () => { currentPopulationId = null; ui.population.value = 'ALL'; editingGate.id = null; rebuildGateTree(); syncToolAvailability(); render(); };
   root.addEventListener('click', selectRoot);
   root.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectRoot(); } });
   root.append(rootIcon, rootName);
   if (samples.length || gates.length) ui.gateTree.append(root);
-  function walk(parentId, container, depth) {
-    (childrenByParent.get(parentId) || []).forEach(g => {
+  function walk(parentId, container, depth, scope = null) {
+    (childrenByParent.get(parentId) || []).filter(g=>gateSampleGroupId(g)===scope).forEach(g => {
       const children = childrenByParent.get(g.id) || [];
       const node = document.createElement('div');
       node.setAttribute('role', 'treeitem'); node.setAttribute('aria-level', String(depth + 2));
       node.setAttribute('aria-selected', String(currentPopulationId === g.id));
       node.setAttribute('aria-label', g.name);
       const row = document.createElement('div'); row.className = 'gateItem'; row.tabIndex = 0;
+      row.draggable=true;row.dataset.gateId=g.id;row.title='Drag onto a sample group to copy this gate branch';
+      row.addEventListener('dragstart',e=>{e.stopPropagation();e.dataTransfer.setData('application/x-cytofeather-gate',g.id);e.dataTransfer.effectAllowed='copy';});
       row.classList.toggle('is-current', currentPopulationId === g.id);
       const group = document.createElement('div'); group.className = 'gateGroup'; group.setAttribute('role', 'group');
       const isCollapsed = collapsedGateIds.has(g.id);
@@ -3379,6 +3667,7 @@ function rebuildGateTree(){
       icon.setAttribute('aria-label', `View ${g.name} population`); icon.title = `View ${g.name} population`;
       icon.addEventListener('click', () => selectGatePopulation(g.id));
       const name = document.createElement('span'); name.className = 'gateName'; name.textContent = g.name;
+      name.draggable = true;
       name.contentEditable = true; name.setAttribute('role', 'textbox'); name.setAttribute('aria-label', `Rename ${g.name}`); name.spellcheck = false;
       name.title = `${g.name} - ${isSegmentGate(g) ? 'segment' : g.type}`;
       let originalName = g.name;
@@ -3406,10 +3695,22 @@ function rebuildGateTree(){
       row.addEventListener('keydown', e => { if (e.target === row && e.key === 'Enter') { e.preventDefault(); selectGatePopulation(g.id); } });
       row.addEventListener('contextmenu', e => { e.preventDefault(); openGateApplyMenu(g.id, e.clientX, e.clientY); });
       node.append(row); container.append(node);
-      if (children.length) { node.append(group); walk(g.id, group, depth + 1); }
+      if (children.length) { node.append(group); walk(g.id, group, depth + 1, scope); }
     });
   }
   walk(null, ui.gateTree, 0);
+  sampleGroups.forEach(sampleGroup=>{
+    const node=document.createElement('div');node.setAttribute('role','treeitem');node.setAttribute('aria-level','1');node.setAttribute('aria-label',sampleGroup.name);node.setAttribute('aria-selected',String(currentPopulationId===sampleGroup.id));
+    const row=document.createElement('div');row.className='gateItem gateRoot';row.tabIndex=0;row.dataset.groupId=sampleGroup.id;row.classList.toggle('is-current',currentPopulationId===sampleGroup.id);
+    const icon=document.createElement('span');icon.className='gateNodeIcon';icon.innerHTML=gateShapeIcon('all');icon.style.color=sampleGroup.color || '#8b5cf6';
+    const name=document.createElement('span');name.className='gateName';name.textContent=sampleGroup.name;
+    const count=document.createElement('span');count.className='hint';count.textContent=String(sampleGroup.sampleIds.length);count.title='Member samples';
+    const edit=document.createElement('button');edit.type='button';edit.className='gateNodeIcon';edit.textContent='⋯';edit.setAttribute('aria-label',`Edit group ${sampleGroup.name}`);edit.addEventListener('click',e=>{e.stopPropagation();openSampleGroups(sampleGroup.id);});
+    row.append(icon,name,count,edit);row.addEventListener('click',()=>selectSampleGroup(sampleGroup.id));row.addEventListener('keydown',e=>{if(e.target===row && (e.key==='Enter'||e.key===' ')){e.preventDefault();selectSampleGroup(sampleGroup.id);}});
+    row.addEventListener('dragover',e=>{if([...e.dataTransfer.types].includes('application/x-cytofeather-gate')){e.preventDefault();e.dataTransfer.dropEffect='copy';row.style.outline='2px solid var(--muted)';}});
+    row.addEventListener('dragleave',()=>row.style.outline='');row.addEventListener('drop',e=>{e.preventDefault();row.style.outline='';applyGateToGroup(e.dataTransfer.getData('application/x-cytofeather-gate'),sampleGroup.id);});
+    const children=document.createElement('div');children.setAttribute('role','group');node.append(row,children);ui.gateTree.append(node);walk(null,children,0,sampleGroup.id);
+  });
   ui.gatesEmptyState.style.display = gates.length ? 'none' : 'block';
 }
 
@@ -3442,6 +3743,7 @@ function selectGatePopulation(gateId) {
     currentPopulationId = gateId;
     ui.population.value = gateId;
     editingGate.id = gateId;
+    syncToolAvailability();
     rebuildGateTree();
     if (!maybeSwitchToSscHeightAreaForGate(gateId)) render();
 }
@@ -3455,6 +3757,7 @@ function hitGateAtCanvasPoint(px, py) {
     return gates.slice().reverse().find(g => gateVisibleForCurrentAxes(g, sampleId) && pointInGate(g, data.x, data.y)) || null;
 }
 ui.plot.addEventListener('mousedown', (e)=>{
+  if (e.button !== 0) return;
   const rect = ui.plot.getBoundingClientRect(); const px = e.clientX-rect.left, py=e.clientY-rect.top;
   const pointerCtx = pointerPlotContext(px, py);
   const activeArea = pointerCtx?.area || plotArea();
@@ -3464,7 +3767,7 @@ ui.plot.addEventListener('mousedown', (e)=>{
 
   if (tool === 'select') {
     const hitLabel = hitTestGatePercentLabel(px, py);
-    if (hitLabel) {
+    if (hitLabel && !e.ctrlKey && !e.metaKey) {
         const hitGate = gates.find(g => g.id === hitLabel.gateId);
         const targetGate = ui.plotType.value === 'scatter-grid' && hitLabel.sampleId ? forkGateForSample(hitGate, hitLabel.sampleId) : hitGate;
         labelDragGateId = targetGate?.id || hitLabel.gateId;
@@ -3474,6 +3777,16 @@ ui.plot.addEventListener('mousedown', (e)=>{
     }
     if (editingGate.id) {
         const g = gates.find(g => g.id === editingGate.id);
+        if (pointerCtx && (e.ctrlKey || e.metaKey) && g?.type === 'poly' && gateVisibleForCurrentAxes(g, sampleId)) {
+            const edge = polygonEdgeAt(g.def.pts.map(p => dataToScreenPoint(p, activeArea)), px, py);
+            if (edge >= 0) {
+                e.preventDefault();
+                const target = ui.plotType.value === 'scatter-grid' && sampleId ? forkGateForSample(g, sampleId) : g;
+                target.def.pts.splice(edge + 1, 0, {x:data.x, y:data.y});
+                editingGate.id = target.id; editingGate.handle = null;
+                markGatePercentDirty(); render(); return;
+            }
+        }
         const handles = g && gateVisibleForCurrentAxes(g, sampleId) ? getGateHandleLayouts(g, activeArea) : [];
         for (const handle of handles) {
             const hitHandle = isSegmentGate(g) ? Math.abs(px - handle.px) < 9 : Math.hypot(px - handle.px, py - handle.py) < 9;
@@ -3525,6 +3838,7 @@ ui.plot.addEventListener('mousedown', (e)=>{
   } else if (tool==='ellipse'){
     drawState = {type:'ellipse', start:data, cur:data, shift:e.shiftKey, area: activeArea, sampleId};
   } else if (tool==='poly'){
+    if (e.detail > 1) return; // The second click finishes the polygon without another vertex.
     drawState = drawState && drawState.type==='poly' ? drawState : {type:'poly', pts:[], area: activeArea, sampleId};
     const last = drawState.pts[drawState.pts.length - 1];
     drawState.pts.push(e.shiftKey && last ? constrainOrthogonalData(last, px, py, {x,y,w,h}) : data);
@@ -3648,7 +3962,24 @@ ui.plot.addEventListener('dblclick', (e)=>{
 });
 
 ui.plot.addEventListener('contextmenu', (e)=>{
+  if (drawState?.type === 'poly') {
+    e.preventDefault(); drawState.pts.pop(); render(); return;
+  }
   const rect = ui.plot.getBoundingClientRect(); const px = e.clientX-rect.left, py=e.clientY-rect.top;
+  const cell = pointerPlotContext(px, py);
+  const selected = gates.find(g => g.id === editingGate.id);
+  if (cell && selected?.type === 'poly' && gateVisibleForCurrentAxes(selected, cell.sample?.id)) {
+    const handle = getGateHandleLayouts(selected, cell.area).find(h => Math.hypot(px-h.px, py-h.py) < 9);
+    if (handle) {
+      e.preventDefault();
+      if (selected.def.pts.length > 3) {
+        const target = ui.plotType.value === 'scatter-grid' && cell.sample ? forkGateForSample(selected, cell.sample.id) : selected;
+        target.def.pts.splice(handle.index, 1); editingGate.id = target.id; editingGate.handle = null;
+        markGatePercentDirty(); render();
+      }
+      return;
+    }
+  }
   const g = hitGateAtCanvasPoint(px, py);
   e.preventDefault();
   if (g) {
@@ -3797,6 +4128,7 @@ function finalizeRect(){
   const sampleId = drawState.sampleId || null;
   const g = {id:idGen(), name:`Gate ${gates.length+1}`, type:'rect', sampleId, parentId: parentIdForNewGate(sampleId), def:{x0,y0,x1,y1}, xParam: axis.xParam, yParam: axis.yParam, xScale: axis.xScale, yScale: axis.yScale};
   g.viewAxis = {...axis};
+  g.groupId = activeSampleGroupId();
   gates.push(g); drawState=null; 
   markGatePercentDirty();
   refreshPopulationOptions(); rebuildGateTree(); render();
@@ -3810,6 +4142,7 @@ function finalizeSegment(){
   const sampleId = drawState.sampleId || null;
   const g = {id:idGen(), name:`Gate ${gates.length+1}`, type:'segment', sampleId, parentId: parentIdForNewGate(sampleId), def:{x0, x1}, xParam: axis.xParam, yParam: null, xScale: axis.xScale, yScale: null};
   g.viewAxis = {...axis};
+  g.groupId = activeSampleGroupId();
   gates.push(g); drawState=null;
   markGatePercentDirty();
   refreshPopulationOptions(); rebuildGateTree(); render();
@@ -3824,17 +4157,29 @@ function finalizeEllipse(){
   const sampleId = drawState.sampleId || null;
   const g = {id:idGen(), name:`Gate ${gates.length+1}`, type:'ellipse', sampleId, parentId: parentIdForNewGate(sampleId), def:{cx:center.x, cy:center.y, rx, ry, angle}, xParam: axis.xParam, yParam: axis.yParam, xScale: axis.xScale, yScale: axis.yScale};
   g.viewAxis = {...axis};
+  g.groupId = activeSampleGroupId();
   gates.push(g); drawState=null; 
   markGatePercentDirty();
   refreshPopulationOptions(); rebuildGateTree(); render();
   setTool('select');
 }
 
+function polygonEdgeAt(points, x, y, tolerance = 8) {
+  let best = -1, distance = tolerance;
+  points.forEach((a, i) => {
+    const b = points[(i+1)%points.length], dx=b.x-a.x, dy=b.y-a.y;
+    const t = Math.max(0,Math.min(1,((x-a.x)*dx+(y-a.y)*dy)/(dx*dx+dy*dy || 1)));
+    const d = Math.hypot(x-a.x-t*dx,y-a.y-t*dy);
+    if(d < distance) { distance=d; best=i; }
+  });
+  return best;
+}
 function finalizePoly(){
-  const pts = (drawState?.pts||[]).slice(); if(pts.length<3){ drawState=null; render(); return; }
+  const pts = (drawState?.pts||[]).filter((p,i,a) => !i || p.x !== a[i-1].x || p.y !== a[i-1].y); if(pts.length<3){ drawState=null; render(); return; }
   const sampleId = drawState.sampleId || null;
   const g = {id:idGen(), name:`Gate ${gates.length+1}`, type:'poly', sampleId, parentId: parentIdForNewGate(sampleId), def:{pts}, xParam: axis.xParam, yParam: axis.yParam, xScale: axis.xScale, yScale: axis.yScale};
   g.viewAxis = {...axis};
+  g.groupId = activeSampleGroupId();
   gates.push(g); drawState=null; 
   markGatePercentDirty();
   refreshPopulationOptions(); rebuildGateTree(); render();
@@ -3967,7 +4312,7 @@ ui.resetView.addEventListener('click', () => {
 });
 ui.population.addEventListener('change', ()=>{
     currentPopulationId = ui.population.value==='ALL'? null : ui.population.value;
-    rebuildGateTree();
+    rebuildGateTree(); syncToolAvailability();
     if (!currentPopulationId || !maybeSwitchToSscHeightAreaForGate(currentPopulationId)) render();
 });
 function positionAxisPopover(anchorEl) {
@@ -4194,6 +4539,15 @@ ui.themeToggle.addEventListener('change', (e) => {
     render();
 });
 
+ui.workspaceMenuButton.addEventListener('contextmenu', e => { e.preventDefault(); ui.workspaceMenuButton.click(); });
+ui.workspaceMenuButton.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); ui.workspaceMenu.classList.add('open'); ui.workspaceMenuButton.setAttribute('aria-expanded','true'); ui.loadWorkspace.focus(); }
+});
+ui.workspaceMenu.addEventListener('keydown', e => {
+    const items = [...ui.workspaceMenu.querySelectorAll('button')];
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); items[(items.indexOf(document.activeElement) + (e.key === 'ArrowDown' ? 1 : items.length-1)) % items.length].focus(); }
+    if (e.key === 'Escape') { e.preventDefault(); ui.workspaceMenu.classList.remove('open'); ui.workspaceMenuButton.setAttribute('aria-expanded','false'); ui.workspaceMenuButton.focus(); }
+});
 ui.workspaceMenuButton.addEventListener('click', (e) => {
     e.stopPropagation();
     const isOpen = ui.workspaceMenu.classList.toggle('open');
@@ -4209,7 +4563,7 @@ ui.exportMenuButton.addEventListener('click', (e) => {
     ui.workspaceMenuButton.setAttribute('aria-expanded', 'false');
 });
 document.addEventListener('click', (e) => {
-    if (!ui.workspaceMenu.contains(e.target) && e.target !== ui.workspaceMenuButton) {
+    if (!ui.workspaceMenu.contains(e.target) && !ui.workspaceMenuButton.contains(e.target)) {
         ui.workspaceMenu.classList.remove('open');
         ui.workspaceMenuButton.setAttribute('aria-expanded', 'false');
     }
@@ -4428,7 +4782,7 @@ function drawGridGateOverlaysPDF(pdf, cellArea, sample, isLightMode, options = {
     pdf.setFontSize(9);
     gates.forEach(g => {
         if (!gateVisibleForCurrentAxes(g, sample.id)) return;
-        const strokeColor = gateEffectiveSampleId(g) ? hexToRgb(gateColor(g)) : (isLightMode ? gateGray : pdfThemeColor('gate', false));
+        const strokeColor = (gateSampleGroupId(g) || gateEffectiveSampleId(g)) ? hexToRgb(gateColor(g)) : (isLightMode ? gateGray : pdfThemeColor('gate', false));
         if (showGates) {
             pdf.setDrawColor(strokeColor.r, strokeColor.g, strokeColor.b);
             pdf.setLineWidth(0.9);
@@ -4664,12 +5018,14 @@ function drawHistGatesPDF(pdf, area, isLightMode, options = {}, isOffset = false
         if (isOffset && effectiveSampleId && sampleIndex < 0) return;
         const gy = sampleIndex >= 0 ? y + sampleIndex * sampleHeight : y;
         const gh = sampleIndex >= 0 ? sampleHeight : h;
-        const strokeColor = effectiveSampleId ? hexToRgb(gateColor(g)) : defaultGateColor;
+        const strokeColor = (gateSampleGroupId(g) || effectiveSampleId) ? hexToRgb(gateColor(g)) : defaultGateColor;
         const {x0, x1} = g.def;
         const rx = x + xs.fwd(Math.min(x0, x1));
         const rw = Math.abs(xs.fwd(x1) - xs.fwd(x0));
 
         if (options.showGates) {
+          const bands=isOffset ? gateOffsetBands(g,visSamples,y,h) : [{y:gy,h:gh}];
+          bands.forEach(({y:gy,h:gh})=>{
             pdf.setFillColor(strokeColor.r, strokeColor.g, strokeColor.b);
             pdf.setGState(new pdf.GState({opacity: effectiveSampleId ? 0.08 : 0.06}));
             pdf.rect(rx, gy, rw, gh, 'F');
@@ -4678,6 +5034,7 @@ function drawHistGatesPDF(pdf, area, isLightMode, options = {}, isOffset = false
             pdf.setLineWidth(1);
             pdf.line(rx, gy, rx, gy + gh);
             pdf.line(rx + rw, gy, rx + rw, gy + gh);
+          });
         }
 
         if (options.showPercent) {
@@ -4713,7 +5070,7 @@ function drawGatesPDF(pdf, area, isLightMode, options = {}) {
 
     gates.forEach(g => {
         if (!gateVisibleForCurrentAxes(g)) return; 
-        const strokeColor = gateEffectiveSampleId(g) ? hexToRgb(gateColor(g)) : (isLightMode ? gateGray : pdfThemeColor('gate', false));
+        const strokeColor = (gateSampleGroupId(g) || gateEffectiveSampleId(g)) ? hexToRgb(gateColor(g)) : (isLightMode ? gateGray : pdfThemeColor('gate', false));
         pdf.setDrawColor(strokeColor.r, strokeColor.g, strokeColor.b);
         if (g.type === 'rect') {
             const {x0,y0,x1,y1} = g.def; const rx = x + xs.fwd(Math.min(x0,x1)); const ry = y + h - ys.fwd(Math.max(y0,y1)); const rw = Math.abs(xs.fwd(x1) - xs.fwd(x0)); const rh = Math.abs(ys.fwd(y1) - ys.fwd(y0));
@@ -4752,17 +5109,20 @@ function drawGatesPDF(pdf, area, isLightMode, options = {}) {
     });
 }
 
-function populationCSV() {
-  const selectedSamples = visibleSamples();
+function populationCSV(populationId = currentPopulationId) {
+  const group=sampleGroups.find(g=>g.id===populationId) || sampleGroups.find(g=>g.id===gateSampleGroupId(gates.find(g=>g.id===populationId)));
+  const selectedSamples = checkedSamples().filter(s=>!group || group.sampleIds.includes(s.id));
+  const population=gates.find(g=>g.id===populationId);
+  const metadata=sampleGroups.length>0;
   const params = Array.from(new Set(selectedSamples.flatMap(s => s.params)));
-  const rows = [['sample', ...params].map(csvEscape).join(',')];
-  const filt = makePopulationFilter(currentPopulationId);
+  const rows = [['sample', ...(metadata?['sample_groups','population_group','population']:[]), ...params].map(csvEscape).join(',')];
+  const filt = makePopulationFilter(populationId);
   selectedSamples.forEach(s => {
     const indices = params.map(p => s.params.indexOf(p));
     for (let i = 0; i < s.n; i++) {
       if (!filt(s, i)) continue;
       const values = indices.map(pi => pi < 0 || !Number.isFinite(s.data[pi][i]) ? '' : s.data[pi][i]);
-      rows.push([s.name, ...values].map(csvEscape).join(','));
+      rows.push([s.name, ...(metadata?[sampleGroupNames(s),group?.name || 'All samples',population?gateExportPath(population):'All events']:[]), ...values].map(csvEscape).join(','));
     }
   });
   return rows.join('\r\n');
@@ -4774,9 +5134,16 @@ function downloadFile(contents, type, filename) {
   a.href = url; a.download = filename; a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-ui.exportCSV.addEventListener('click', safeHandler('Population export', () => {
-  downloadFile(populationCSV(), 'text/csv;charset=utf-8', 'population.csv');
-}));
+ui.exportCSV.addEventListener('click',()=>{
+  const select=byId('populationExportChoice');select.replaceChildren(new Option('All samples · All events',''));
+  sampleGroups.forEach(group=>select.add(new Option(`${group.name} · All events`,group.id)));
+  gates.forEach(g=>select.add(new Option(`${sampleGroups.find(group=>group.id===gateSampleGroupId(g))?.name || 'All samples'} · ${gateExportPath(g)}`,g.id)));
+  select.value=currentPopulationId || '';openModal(byId('populationExportModal'));
+});
+byId('cancelPopulationExport').addEventListener('click',()=>closeModal(byId('populationExportModal')));
+byId('confirmPopulationExport').addEventListener('click',()=>{
+  downloadFile(populationCSV(byId('populationExportChoice').value || null),'text/csv;charset=utf-8','population.csv');closeModal(byId('populationExportModal'));
+});
 
 const STATS_EXPORT_METRICS = [
     {id: 'events', label: 'Events', header: 'events'},
@@ -4819,31 +5186,38 @@ function openStatsExportModal() {
     if (!visibleSamples().length) { alert('Load and show at least one sample before exporting statistics.'); return; }
     const params = allParameterNames();
     if (!params.length) { alert('No parameters are available to export.'); return; }
-    populateCheckboxList(ui.statsGateOptions, [
-        {value: '', label: 'All Events'},
-        ...gates.map(g => ({value: g.id, label: g.name}))
-    ]);
+    const scope=byId('statsExportScope');scope.replaceChildren(new Option('All checked samples',''));
+    sampleGroups.forEach(group=>scope.add(new Option(group.name,group.id)));
+    scope.value=activeSampleGroupId() || '';refreshStatsGateOptions();
     populateCheckboxList(ui.statsParamOptions, params.map(p => ({value: p, label: p})));
     populateCheckboxList(ui.statsMetricOptions, STATS_EXPORT_METRICS.map(m => ({value: m.id, label: m.label})));
     openModal(ui.statsExportModal);
 }
 
-function exportStatsCSV(gateIds, paramNames, metricIds) {
+function refreshStatsGateOptions() {
+  const scope=byId('statsExportScope').value;
+  const options=scope ? [] : [{value:'',label:'All samples · All events'}];
+  sampleGroups.filter(group=>!scope || group.id===scope).forEach(group=>options.push({value:group.id,label:`${group.name} · All events`}));
+  gates.filter(g=>!scope || gateSampleGroupId(g)===scope).forEach(g=>options.push({value:g.id,label:`${sampleGroups.find(group=>group.id===gateSampleGroupId(g))?.name || 'All samples'} · ${gateExportPath(g)}`}));
+  populateCheckboxList(ui.statsGateOptions,options);
+}
+byId('statsExportScope').addEventListener('change',refreshStatsGateOptions);
+function statisticsCSV(gateIds, paramNames, metricIds, scope = '') {
     const metricSet = new Set(metricIds);
-    const selectedGates = [{id: null, name: 'All Events'}, ...gates].filter(g => gateIds.includes(g.id || ''));
-    const header = ['sample', 'gate'];
+    const selectedGates = [{id: null, name: 'All Events'}, ...sampleGroups.map(group=>({id:group.id,name:'All events',groupId:group.id,isGroup:true})), ...gates].filter(g => gateIds.includes(g.id || ''));
+    const header = ['sample', 'sample_groups', 'gate_group', 'gate', 'gate_path'];
     STATS_EXPORT_METRICS.forEach(metric => {
         if (!metricSet.has(metric.id)) return;
         if (metric.perParam) paramNames.forEach(p => header.push(`${metric.id}_${p}`));
         else header.push(metric.header);
     });
-    if (header.length <= 2) { alert('Choose at least one statistic or parameter-backed statistic to export.'); return; }
+    if (header.length <= 5) throw new Error('Choose at least one statistic or parameter-backed statistic to export.');
 
     const rows = [header.map(csvEscape).join(',')];
-    visibleSamples().forEach(s => {
+    checkedSamples().filter(s=>!scope || sampleGroups.find(group=>group.id===scope)?.sampleIds.includes(s.id)).forEach(s => {
         const totalEvents = s.n;
         selectedGates.forEach(g => {
-            if (g.id && !gateAppliesToSample(g, s.id)) return;
+            if (g.isGroup ? !sampleGroups.find(group=>group.id===g.id)?.sampleIds.includes(s.id) : g.id && !gateAppliesToSample(g, s.id)) return;
             const gateFilter = makePopulationFilter(g.id);
             const gateRecord = g.id ? gates.find(gate => gate.id === g.id) : null;
             const parentFilter = gateRecord ? makePopulationFilter(gateRecord.parentId) : () => true;
@@ -4864,7 +5238,7 @@ function exportStatsCSV(gateIds, paramNames, metricIds) {
             const statsByParam = new Map(paramNames.map(p => [p, calculateStats(valuesByParam.get(p))]));
             const percParent = parentCount > 0 ? (eventCount / parentCount * 100).toFixed(2) : 'N/A';
             const percTotal = totalEvents > 0 ? (eventCount / totalEvents * 100).toFixed(2) : '0.00';
-            const row = [s.name, g.name];
+            const row = [s.name, sampleGroupNames(s), sampleGroups.find(group=>group.id===gateSampleGroupId(g))?.name || 'All samples', g.name, g.isGroup?'All events':gateExportPath(g)];
             STATS_EXPORT_METRICS.forEach(metric => {
                 if (!metricSet.has(metric.id)) return;
                 if (metric.id === 'events') row.push(eventCount);
@@ -4876,13 +5250,10 @@ function exportStatsCSV(gateIds, paramNames, metricIds) {
         });
     });
 
-    const blob = new Blob([rows.join('\r\n')], {type: 'text/csv'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'statistics.csv';
-    a.click();
-    URL.revokeObjectURL(url);
+    return rows.join('\r\n');
+}
+function exportStatsCSV(gateIds,paramNames,metricIds) {
+    downloadFile(statisticsCSV(gateIds,paramNames,metricIds,byId('statsExportScope').value),'text/csv;charset=utf-8','statistics.csv');
 }
 
 ui.exportStats.addEventListener('click', openStatsExportModal);
@@ -4907,7 +5278,7 @@ function serializeWorkspace() {
       return {...storedSample, data: Array.from(rawData || s.data, d => Array.from(d))};
     }),
     collapsedGateIds: Array.from(collapsedGateIds),
-    gates, axis, visibleSampleIds: Array.from(visibleSampleIds), currentPopulationId,
+    sampleGroups, gates, axis, visibleSampleIds: Array.from(visibleSampleIds), currentPopulationId,
     plotType: ui.plotType.value, gridCols: ui.gridCols.value, plotStyle,
     paramSettings, theme: document.body.dataset.theme, compensation: compensationState,
   };
@@ -4929,6 +5300,13 @@ function prepareWorkspace(workspace) {
   });
   const sampleIds = new Set(nextSamples.map(s => s.id));
   if (sampleIds.size !== nextSamples.length) fail('Duplicate sample IDs.');
+  if (workspace.sampleGroups != null && !Array.isArray(workspace.sampleGroups)) fail('Invalid sample groups.');
+  const nextGroups=(workspace.sampleGroups || []).map(group=>{
+    if(!group || typeof group.id!=='string' || !group.id || group.id==='ALL' || typeof group.name!=='string' || !group.name.trim() || !Array.isArray(group.sampleIds) || group.sampleIds.some(id=>!sampleIds.has(id)) || new Set(group.sampleIds).size!==group.sampleIds.length) fail('Invalid sample group.');
+    return {...group,color:/^#[0-9a-f]{6}$/i.test(group.color || '') ? group.color : '#8b5cf6',sampleIds:group.sampleIds.slice()};
+  });
+  const groupIds=new Set(nextGroups.map(g=>g.id));
+  if(groupIds.size!==nextGroups.length || new Set(nextGroups.map(g=>g.name.toLowerCase())).size!==nextGroups.length) fail('Duplicate sample groups.');
   const nextAxis = {...workspace.axis};
   for (const dim of ['x', 'y']) {
     if (!['linear', 'log'].includes(nextAxis[dim + 'Scale'])) fail('Invalid axis scale.');
@@ -4946,6 +5324,7 @@ function prepareWorkspace(workspace) {
     if (g.type === 'poly' && (!Array.isArray(g.def.pts) || g.def.pts.length < 3 || g.def.pts.some(p => !p || !finite(p.x) || !finite(p.y)))) fail('Invalid polygon.');
     if (g.type === 'ellipse' && (!(g.def.rx > 0) || !(g.def.ry > 0) || (g.def.angle != null && !finite(g.def.angle)))) fail('Invalid ellipse.');
     if (g.type === 'circle' && !(g.def.r > 0)) fail('Invalid circle.');
+    if (groupIds.has(g.id) || (g.groupId && !groupIds.has(g.groupId))) fail('Invalid gate group reference.');
     if (g.sampleId && !sampleIds.has(g.sampleId)) fail('A gate references a missing sample.');
     if (g.excludeSampleIds && (!Array.isArray(g.excludeSampleIds) || g.excludeSampleIds.some(id => !sampleIds.has(id)))) fail('Invalid gate sample exclusions.');
     return normalizeGate(gate);
@@ -4959,11 +5338,13 @@ function prepareWorkspace(workspace) {
       if (visited.has(current.id)) fail('The gate hierarchy contains a cycle.');
       visited.add(current.id);
       if (current.parentId && !gateMap.has(current.parentId)) fail('A gate references a missing parent.');
-      current = gateMap.get(current.parentId);
+      const parent=gateMap.get(current.parentId);
+      if(parent && (parent.groupId || null)!==(current.groupId || null)) fail('Gate parents must belong to the same sample group.');
+      current = parent;
     }
   }
   if (!Array.isArray(workspace.visibleSampleIds) || workspace.visibleSampleIds.some(id => !sampleIds.has(id))) fail('Invalid visible sample list.');
-  if (workspace.currentPopulationId && !gateMap.has(workspace.currentPopulationId)) fail('The selected population is missing.');
+  if (workspace.currentPopulationId && !gateMap.has(workspace.currentPopulationId) && !groupIds.has(workspace.currentPopulationId)) fail('The selected population is missing.');
   const savedCompensation = workspace.compensation;
   if (savedCompensation && (!validNames(savedCompensation.channels) || !Array.isArray(savedCompensation.matrix) || savedCompensation.matrix.length !== savedCompensation.channels.length || savedCompensation.matrix.some(row => !Array.isArray(row) || row.length !== savedCompensation.channels.length || row.some(v => !finite(v))))) fail('Invalid compensation matrix.');
   const nextCompensation = normalizeCompensationState(savedCompensation);
@@ -4979,12 +5360,12 @@ function prepareWorkspace(workspace) {
     if (!value || !['linear','log'].includes(value.scale) || !finite(value.min) || !finite(value.max) || value.min >= value.max || (value.scale === 'log' && value.min <= 0)) fail('Invalid saved parameter range.');
     settings[key] = {...value};
   }
-  return {...workspace, samples: nextSamples, gates: nextGates, axis: nextAxis, compensation: nextCompensation, plotType: nextPlotType, paramSettings: settings};
+  return {...workspace, sampleGroups:nextGroups, samples: nextSamples, gates: nextGates, axis: nextAxis, compensation: nextCompensation, plotType: nextPlotType, paramSettings: settings};
 }
 
 function restoreWorkspace(workspace) {
   const next = prepareWorkspace(workspace);
-  samples = next.samples; gates = next.gates; axis = next.axis;
+  sampleGroups = next.sampleGroups; samples = next.samples; gates = next.gates; axis = next.axis;
   collapsedGateIds.clear();
   if (Array.isArray(next.collapsedGateIds)) next.collapsedGateIds.filter(id => gates.some(g => g.id === id)).forEach(id => collapsedGateIds.add(id));
   visibleSampleIds = new Set(next.visibleSampleIds); currentPopulationId = next.currentPopulationId || null;
@@ -5032,7 +5413,7 @@ function buildGatingStrategyPanels(gateList = gates, plotSamples = visibleSample
         gateList.filter(g => (g.parentId || null) === parentId).forEach(g => {
             if (!plotSamples.some(s => gateAppliesToSample(g, s.id))) return;
             const histogram = isSegmentGate(g);
-            const key = JSON.stringify([g.xParam, histogram ? null : g.yParam, g.xScale || 'linear', histogram ? null : (g.yScale || 'linear')]);
+            const key = JSON.stringify([gateSampleGroupId(g), g.xParam, histogram ? null : g.yParam, g.xScale || 'linear', histogram ? null : (g.yScale || 'linear')]);
             if (!groups.has(key)) groups.set(key, []);
             groups.get(key).push(g);
         });
@@ -5049,6 +5430,17 @@ function buildGatingStrategyPanels(gateList = gates, plotSamples = visibleSample
     };
     walk(null);
     return panels;
+}
+
+function buildGatingStrategyRows(mode, plotSamples = visibleSamples()) {
+    const row = (label, members, gateList) => ({label, samples:members, panels:buildGatingStrategyPanels(gateList,members)});
+    if (mode === 'grid') return plotSamples.map(sample => row(sample.name,[sample],gates)).filter(r=>r.panels.length);
+    const rows = [row('All samples',plotSamples,gates.filter(g=>!gateSampleGroupId(g)))];
+    sampleGroups.forEach(group => {
+        const members=plotSamples.filter(s=>group.sampleIds.includes(s.id));
+        if(members.length) rows.push(row(group.name,members,gates.filter(g=>gateSampleGroupId(g)===group.id)));
+    });
+    return rows.filter(r=>r.panels.length);
 }
 
 function strategyGatePoints(g) {
@@ -5238,23 +5630,24 @@ function createGatingStrategyPDF(options = {}) {
     const panels=buildGatingStrategyPanels(gates,plotSamples);
     if(!panels.length) throw new Error('Draw at least one gate for a visible sample first.');
     const settings={...options,mode,palette:options.palette || plotStyle.scatterGridPalette || 'viridis'};
-    const panelAxes=panels.map(p=>strategyAxisForPanel(p,strategyPanelSamples(p,plotSamples)));
-    const gateSteps=new Map();panels.forEach(p=>p.gates.forEach(g=>gateSteps.set(g.id,p.step)));
-    const pages=gatingStrategyPagination(panels.length,plotSamples.length,mode,options.columns);
+    const rows=buildGatingStrategyRows(mode,plotSamples);
+    const panelCount=Math.max(...rows.map(r=>r.panels.length));
+    const pages=gatingStrategyPagination(panelCount,rows.length,'grid',options.columns).filter(page=>rows.slice(page.rowStart,page.rowEnd).some(r=>r.panels.length>page.colStart));
     const columnWidth=252, plotSize=186, margin=32;
     const labelRows=Math.max(...panels.map(p=>p.gates.length));
-    const rowHeight=plotSize+98+labelRows*24;
+    const rowHeight=plotSize+116+labelRows*24;
     let pdf;
     pages.forEach((page,pageIndex)=>{
-        const pagePanels=panels.slice(page.colStart,page.colEnd);
-        const width=margin*2+pagePanels.length*columnWidth;
+        const pageRows=rows.slice(page.rowStart,page.rowEnd).filter(r=>r.panels.length>page.colStart);
+        const pageColumns=Math.min(page.colEnd,Math.max(...pageRows.map(r=>r.panels.length)))-page.colStart;
+        const width=margin*2+pageColumns*columnWidth;
         const legendRows=mode==='overlay'?Math.ceil(plotSamples.length/Math.max(1,Math.floor((width-64)/180))):0;
-        const headerNote=`${mode==='grid'?'One row per sample':'Samples overlaid'} | Percentages of parent population. ${settings.density?'Density color is relative to each panel.':'Colors identify samples.'}`;
+        const headerNote=`${mode==='grid'?'One row per sample':'One row per sample group; shared gates in All samples'} | Percentages of parent population. ${settings.density?'Density color is relative to each panel.':'Colors identify samples.'}`;
         // Narrow continuation pages need additional space for a wrapped subtitle.
         const noteRows=Math.max(1,Math.ceil(headerNote.length / Math.max(24,Math.floor((width-64)/4.5))));
         const noteExtra=(noteRows-1)*11;
         const headerHeight=(mode==='overlay'?76+legendRows*14:82)+noteExtra;
-        const height=headerHeight+(page.rowEnd-page.rowStart)*rowHeight+34;
+        const height=headerHeight+pageRows.length*rowHeight+34;
         const orientation=width>=height?'landscape':'portrait';
         if(!pdf) pdf=new jsPDF({orientation,unit:'pt',format:[width,height],compress:true});
         else pdf.addPage([width,height],orientation);
@@ -5272,26 +5665,24 @@ function createGatingStrategyPDF(options = {}) {
                 pdf.setFontSize(8);strategyPdfText(pdf,s.name,x+11,y,161,1);
             });
         }
-        pagePanels.forEach((panel,col)=>{
-            const x=margin+col*columnWidth;
-            const title=panel.gates.length<=2?panel.gates.map(g=>g.name).join(' / '):`${panel.gates[0].name} + ${panel.gates.length-1} gates`;
-            pdf.setFont('helvetica','bold');pdf.setFontSize(10.5);pdf.setTextColor(30,39,53);
-            strategyPdfText(pdf,`${panel.step}. ${title}`,x+43,headerHeight+2,plotSize,2);
-            pdf.setFont('helvetica','normal');
-        });
-        for(let row=page.rowStart;row<page.rowEnd;row++) {
-            const rowSamples=mode==='grid'?[plotSamples[row]]:plotSamples;
-            const top=headerHeight+(row-page.rowStart)*rowHeight;
-            pagePanels.forEach((panel,col)=>{
+        pageRows.forEach((row,rowIndex)=>{
+            const rowSamples=row.samples;
+            const gateSteps=new Map();row.panels.forEach(p=>p.gates.forEach(g=>gateSteps.set(g.id,p.step)));
+            const top=headerHeight+rowIndex*rowHeight;
+            row.panels.slice(page.colStart,page.colEnd).forEach((panel,col)=>{
                 const x=margin+col*columnWidth;
                 const eligible=strategyPanelSamples(panel,rowSamples);
                 const parent=gates.find(g=>g.id===panel.parentId);
                 const source=parent?`${parent.name} (step ${gateSteps.get(parent.id) || '?'})`:'All events';
                 pdf.setFontSize(8);pdf.setTextColor(101,111,127);
-                const rowLabel=mode==='grid'?`${rowSamples[0].name} | From ${source}`:`From ${source}`;
+                const title=panel.gates.length<=2?panel.gates.map(g=>g.name).join(' / '):`${panel.gates[0].name} + ${panel.gates.length-1} gates`;
+                pdf.setFont('helvetica','bold');pdf.setFontSize(10.5);pdf.setTextColor(30,39,53);
+                strategyPdfText(pdf,`${panel.step}. ${title}`,x+43,top+2,plotSize,2);
+                pdf.setFont('helvetica','normal');pdf.setFontSize(8);pdf.setTextColor(101,111,127);
+                const rowLabel=`${row.label} | From ${source}`;
                 strategyPdfText(pdf,rowLabel,x+43,top+29,plotSize,2);
                 const area={x:x+43,y:top+52,w:plotSize,h:plotSize};
-                const plotAxis=panelAxes[page.colStart+col];
+                const plotAxis=strategyAxisForPanel(panel,strategyPanelSamples(panel,rowSamples));
                 drawStrategyAxesPDF(pdf,area,plotAxis,panel.histogram);
                 const parentFilter=makePopulationFilter(panel.parentId);
                 if(eligible.length) {
@@ -5313,9 +5704,9 @@ function createGatingStrategyPDF(options = {}) {
                     pdf.setFont('helvetica','bold');pdf.text(pct,area.x+area.w,lineY,{align:'right'});pdf.setFont('helvetica','normal');
                 });
             });
-        }
+        });
         pdf.setFontSize(8);pdf.setTextColor(135,142,153);
-        pdf.text(`Steps ${page.colStart+1}-${page.colEnd} of ${panels.length}${mode==='grid'?` | Samples ${page.rowStart+1}-${page.rowEnd} of ${plotSamples.length}`:''}`,margin,height-14);
+        pdf.text(`Columns ${page.colStart+1}-${page.colStart+pageColumns} | ${mode==='grid'?'Sample':'Group'} rows ${page.rowStart+1}-${page.rowEnd} of ${rows.length}`,margin,height-14);
         pdf.text(`${pageIndex+1} / ${pages.length}`,width-margin,height-14,{align:'right'});
     });
     pdf.setProperties({title:'Cytofeather gating strategy',subject:'Sequential gates, displayed on their parent populations',creator:'Cytofeather'});
@@ -5328,7 +5719,7 @@ ui.exportStrategy.addEventListener('click', safeHandler('Gating strategy', () =>
     ui.strategyMode.value=ui.plotType.value==='scatter-grid'?'grid':'overlay';
     ui.strategyDensity.checked=!!plotStyle[ui.plotType.value==='scatter-grid'?'scatterGridPseudocolor':'scatterPseudocolor'];
     ui.strategyPalette.value=plotStyle.scatterGridPalette || 'viridis';
-    ui.strategySummary.textContent=`${panels.length} step${panels.length===1?'':'s'} across ${visibleSamples().length} visible sample${visibleSamples().length===1?'':'s'}. Sibling gates on the same axes share a panel.`;
+    ui.strategySummary.textContent=`${panels.length} step${panels.length===1?'':'s'} across ${visibleSamples().length} visible sample${visibleSamples().length===1?'':'s'}. Only applicable gates are included. Overlay uses one row per group; shared gates have their own row.`;
     openModal(ui.strategyExportModal);
 }));
 ui.cancelStrategyExport.addEventListener('click',()=>closeModal(ui.strategyExportModal));
@@ -5430,7 +5821,7 @@ function parseCSVRows(text) {
   return rows;
 }
 
-async function parseCSV(buffer, name) {
+async function parseCSV(buffer, name, chooseCount = count => count) {
   const rows = parseCSVRows(new TextDecoder('utf-8').decode(buffer));
   if (rows.length < 2) throw new Error('CSV needs a header and at least one event.');
   const header = rows.shift().map(value => value.trim());
@@ -5447,7 +5838,9 @@ async function parseCSV(buffer, name) {
     if (row[i].trim() && !Number.isFinite(number(row[i]))) throw new Error(`Non-numeric value in parameter "${header[i]}".`);
   }
   const params = indices.map(i => header[i]);
-  return {name, params, paramDetectors: params.slice(), paramStains: params.map(() => ''), data: indices.map(i => Float64Array.from(rows, row => number(row[i]))), n: rows.length};
+  const count = await chooseCount(rows.length, name);
+  if (!count) return null;
+  return {name, params, paramDetectors: params.slice(), paramStains: params.map(() => ''), data: indices.map(i => Float64Array.from({length:count}, (_,k) => number(rows[importEventIndex(k,count,rows.length)][i]))), n: count, originalEventCount: rows.length};
 }
 
 function uniqueParameterNames(names, detectors) {
@@ -5461,7 +5854,7 @@ function uniqueParameterNames(names, detectors) {
   });
 }
 
-async function parseFCS(buffer, name){
+async function parseFCS(buffer, name, chooseCount = count => count){
   const ascii = (off,len)=> new TextDecoder('ascii').decode(new Uint8Array(buffer, off, len));
   if (buffer.byteLength < 58) throw new Error('FCS header is missing or truncated.');
   const head = ascii(0,6);
@@ -5505,7 +5898,9 @@ async function parseFCS(buffer, name){
   if (bytesPer.some(b => !Number.isInteger(b) || b < 1 || b > 8)) throw new Error('Only byte-aligned FCS parameters up to 64 bits are supported.');
   const bytesPerEvent = bytesPer.reduce((a,b)=>a+b,0);
   if (!Number.isSafeInteger(bytesPerEvent * tot) || bytesPerEvent * tot > view.byteLength) throw new Error('FCS event data is truncated.');
-  const arrays = Array.from({length:par}, ()=> new Float64Array(tot));
+  const count = await chooseCount(tot, name);
+  if (!count) return null;
+  const arrays = Array.from({length:par}, ()=> new Float64Array(count));
   function readVal(off, p){
     const b = bytesPer[p];
     if (dtype === "F") return view.getFloat32(off, little);
@@ -5522,13 +5917,13 @@ async function parseFCS(buffer, name){
   }
   if (mode === "L"){
     let off = 0;
-    for (let i=0;i<tot;i++){
-      let pOff = off;
+    for (let i=0;i<count;i++){
+      let pOff = importEventIndex(i,count,tot) * bytesPerEvent;
       for (let p=0;p<par;p++){ arrays[p][i] = readVal(pOff, p); pOff += bytesPer[p]; }
       off += bytesPerEvent;
     }
   }
-  return { name, params: uniqueParameterNames(params, paramDetectors), paramDetectors, paramStains, data: arrays, n: tot };
+  return { name, params: uniqueParameterNames(params, paramDetectors), paramDetectors, paramStains, data: arrays, n: count, originalEventCount: tot };
 }
 
 function parseText(txt){

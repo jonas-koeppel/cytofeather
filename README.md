@@ -88,11 +88,21 @@ The Export menu includes:
 - Statistics (CSV)
 - Population (CSV)
 
-PNG exports include the current theme background so shared images stay legible. PDF export includes options for size, gates, sample labels, percent labels, all-events plotting, custom axis labels, and light/dark background. Statistics export lets you choose gates, parameters, and metrics such as events, mean, median, standard deviation, percent parent, and percent total.
+PNG exports include the current theme background so shared images stay legible. PDF export includes options for size, gates, sample labels, percent labels, all-events plotting, custom axis labels, and light/dark background. Statistics export lets you choose all checked samples or a particular sample group, populations, parameters, and metrics such as events, mean, median, standard deviation, percent parent, and percent total. Rows identify sample memberships, population groups, and gate paths so copied gates remain distinguishable. Group populations include members only; overlapping groups receive separate population rows. Population CSV offers an explicit population selector and includes group and population metadata when groups exist, without duplicating events for overlapping memberships.
 
-Gating strategy export follows the gate hierarchy, with sibling gates on the same axes grouped into one panel. Choose overlaid samples or a grid with one row per sample, a density palette, and the number of panels per page. Each panel shows its parent population, gate outlines, and percentages of parent.
+Gating strategy export follows the gate hierarchy, with sibling gates on the same axes grouped into one panel. Choose overlays with one row per sample group (plus a separate row for shared gates), or a grid with one row per sample. Each row contains only applicable gates, packed across columns; unrelated gates are omitted. Choose a density palette and the number of columns per page. Each panel shows its parent population, gate outlines, and percentages of parent.
 
 Use the Pseudocolor toggle below a scatter plot to enable density dots in overlay or grid mode. Right-click the plot to choose a palette and adjust styling. Overlay density is calculated across all visible samples. Palettes include Classic (blue/cyan/green/yellow/red), Viridis, and Plasma. Use the gate hierarchy disclosure arrows to collapse branches and the gate icon to view a population.
+
+Polygon gates support point editing: select a polygon, then Ctrl/⌘-click an edge to insert a vertex or right-click a vertex to remove it. A polygon keeps at least three vertices. Right-click while drawing to undo the last point.
+
+For FCS or CSV files with more than 500,000 events, import offers an evenly sampled 500,000-event subset, all events, or skipping the file. Subset statistics and exports use only imported events; hover over the file row to see its original event count. Full imports may slow plotting and compensation.
+
+Compensation includes a live raw-versus-draft scatter preview with sample and detector selectors. It uses up to 2,500 evenly sampled events and shared linear axes, including negative values. The main data changes only when you choose Apply; Cancel discards the draft.
+
+Click **Workspace** to access **Load Workspace…** and **Save Workspace**.
+
+Use **Sample group** below the gate hierarchy to create named groups and choose their members. Groups appear alongside All events. Drag a gate row onto a group, or right-click a gate in the hierarchy or plot and choose the group, to copy its branch with the required ancestors. Group copies are independent of the originals, and edits apply to all member samples. Select a group to view its samples; use its **…** button to change membership or rename it. New groups receive an available name such as Group 1 and a distinct default color that can be customized. Small overlapping color dots beside each file show its group memberships. Group gates remain visible in that color in All events; grid and offset views show them only on member samples. Groups, colors, and gate assignments are saved in workspaces.
 
 ## Privacy
 
