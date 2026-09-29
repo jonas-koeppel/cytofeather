@@ -7,9 +7,9 @@ const path = require('node:path');
 const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 const script = html.match(/<script>\s*([\s\S]*?)<\/script>/)[1];
 new vm.Script(script); // Check syntax of the complete production script.
-const functions = ['checkedSamples','sampleGroupNames','gateExportPath','defaultGroupColor','statisticsCSV','recalculateGatePercentCache','gatePercentText','gatePercentTextForSample','gateColor','sampleById','gateOffsetBands','gateVisibleForCurrentAxes','gateSampleIsVisible','gateSampleGroupId','activeSampleGroupId','copyGateBranchToGroup','gateAndDescendantIds','importEventIndex','compensationPreviewSample','polygonEdgeAt','parseCSVRows','parseCSV','uniqueParameterNames','parseFCS','parseText','csvEscape','populationCSV','prepareWorkspace','serializeWorkspace','normalizeGate','isSegmentGate','transformAxisValue','sampleDetectorNames','parameterIndexForDetector','normalizeCompensationState','compensationOperator','invertSquareMatrix','applyCompensationToSample','makePopulationFilter','valueOf','pointInGate','gateAppliesToSample','gateEffectiveSampleId','visibleSamples','calculateStats','calculateHistogram','smoothHistogramBins'];
+const functions = ['validateCustomAxes','applyCustomAxes','checkedSamples','sampleGroupNames','gateExportPath','defaultGroupColor','statisticsCSV','recalculateGatePercentCache','gatePercentText','gatePercentTextForSample','gateColor','sampleById','gateOffsetBands','gateVisibleForCurrentAxes','gateSampleIsVisible','gateSampleGroupId','activeSampleGroupId','copyGateBranchToGroup','gateAndDescendantIds','importEventIndex','compensationPreviewSample','polygonEdgeAt','parseCSVRows','parseCSV','uniqueParameterNames','parseFCS','parseText','csvEscape','populationCSV','prepareWorkspace','serializeWorkspace','normalizeGate','isSegmentGate','transformAxisValue','sampleDetectorNames','parameterIndexForDetector','normalizeCompensationState','compensationOperator','invertSquareMatrix','applyCompensationToSample','makePopulationFilter','valueOf','pointInGate','gateAppliesToSample','gateEffectiveSampleId','visibleSamples','calculateStats','calculateHistogram','smoothHistogramBins'];
 const ctx = vm.createContext({TextDecoder, Float64Array, Float32Array, Uint32Array, DataView, Uint8Array, console});
-vm.runInContext(`let gatePercentCache=new Map(),gatePercentBySampleCache=new Map(),gatePercentCacheDirty=true;let sampleGroups = [], samples = [], gates = [], axis = {}, compensationState = {}, visibleSampleIds = new Set(), currentPopulationId = null; const collapsedGateIds=new Set(); const palette=['#123456']; let plotStyle={}; const paramSettings={}; const ui={plotType:{value:'hist-offset'},gridCols:{value:'2'}}; const document={body:{dataset:{theme:'dark'}}};`, ctx);
+vm.runInContext(`let gatePercentCache=new Map(),gatePercentBySampleCache=new Map(),gatePercentCacheDirty=true;let customAxes=[],sampleGroups = [], samples = [], gates = [], axis = {}, compensationState = {}, visibleSampleIds = new Set(), currentPopulationId = null; const collapsedGateIds=new Set(); const palette=['#123456']; let plotStyle={}; const paramSettings={}; const ui={plotType:{value:'hist-offset'},gridCols:{value:'2'}}; const document={body:{dataset:{theme:'dark'}}};`, ctx);
 for (const name of functions) {
   const start = script.search(new RegExp(`(?:async )?function ${name}\\(`));
   assert.ok(start >= 0, name);
@@ -166,4 +166,20 @@ test('CSV all-sample exports omit nonmember gates and preserve overlapping group
   assert.equal(rows.filter(r=>r.startsWith('s2,')).length,2);assert.ok(!rows.some(r=>r.startsWith('outside,')));
   const pop=ctx.populationCSV('g1').trim().split('\n');assert.equal(pop.length,2);assert.ok(pop[1].startsWith('s2,'));
   run('sampleGroups=[];gates=[];currentPopulationId=null');
+});
+
+test('Custom axes calculate arithmetic, exclude invalid values and rebuild without duplicates',()=>{
+  const s={params:['X','Y'],paramDetectors:['D1','D2'],n:3,data:[Float64Array.from([6,4,NaN]),Float64Array.from([2,0,1])]};
+  const defs=['/','+','-','*'].map((operator,i)=>({name:'custom'+i,left:'X',right:'Y',operator}));
+  ctx.applyCustomAxes(s,defs);assert.equal(s.data[2][0],3);assert.ok(Number.isNaN(s.data[2][1]));assert.ok(Number.isNaN(s.data[2][2]));assert.equal(s.data[3][0],8);assert.equal(s.data[4][0],4);assert.equal(s.data[5][0],12);
+  ctx.applyCustomAxes(s,defs);assert.equal(s.params.length,6);assert.equal(s.paramDetectors.length,6);
+  s.data[0]=Float64Array.from([8,4,0]);ctx.applyCustomAxes(s,defs);assert.equal(s.data[2][0],4);
+  ctx.applyCustomAxes(s,[]);assert.deepEqual(Array.from(s.params),['X','Y']);
+  assert.throws(()=>ctx.validateCustomAxes([{name:'X',left:'X',right:'Y',operator:'/'}],[s]),/already/);
+});
+test('Custom axis workspace restores derived values and gate parameters',()=>{
+  const w=workspace();w.customAxes=[{name:'Ratio',left:'X',right:'Y',operator:'/'}];w.axis.xParam='Ratio';w.gates[0].xParam='Ratio';
+  const next=ctx.prepareWorkspace(w);assert.equal(next.samples[0].params[2],'Ratio');assert.equal(next.samples[0].data[2][0],1/3);
+  const stored=JSON.parse(JSON.stringify({...w,samples:next.samples.map(s=>({...s,data:s.rawData.map(a=>Array.from(a))}))}));
+  const restored=ctx.prepareWorkspace(stored);assert.equal(restored.samples[0].params.length,3);assert.equal(restored.samples[0].data[2][1],.5);
 });

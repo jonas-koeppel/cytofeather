@@ -382,6 +382,20 @@
   <input type="color" id="colorPicker" style="visibility: hidden; position: absolute; top: -100px;">
   <input type="file" id="loadWorkspaceInput" accept=".json" style="display:none">
 
+  <div class="modal-overlay" id="customAxesModal">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="customAxesTitle">
+      <h4 id="customAxesTitle">Custom axes</h4>
+      <p class="hint">Combine two parameters with simple arithmetic. Custom axes appear in the X and Y menus and are saved with your workspace.</p>
+      <div id="customAxisList"></div>
+      <label for="customAxisName">Axis name</label><input type="text" id="customAxisName" placeholder="e.g. GFP / size" />
+      <label for="customAxisLeft">First parameter</label><select id="customAxisLeft"></select>
+      <label for="customAxisOperator">Operation</label><select id="customAxisOperator"><option value="/">Divide (ratio)</option><option value="*">Multiply</option><option value="+">Add</option><option value="-">Subtract</option></select>
+      <label for="customAxisRight">Second parameter</label><select id="customAxisRight"></select>
+      <p class="hint">Uses compensated values when compensation is enabled. Missing values and division by zero are excluded from plots and statistics.</p>
+      <p id="customAxisError" role="alert"></p>
+      <div class="modal-footer"><button id="cancelCustomAxes" class="secondary">Done</button><button id="addCustomAxis">Add axis</button></div>
+    </div>
+  </div>
   <div class="modal-overlay" id="pdfExportModal">
     <div class="modal-content">
       <h4>PDF Export Options</h4>
@@ -691,6 +705,7 @@
         </div>
         <button id="autoY" class="borderless icon-only magicAuto" title="Auto Y range" aria-label="Auto Y range">🪄</button>
       </div>
+      <button id="customAxesButton" class="borderless" style="font-size:11px;color:var(--muted)">Custom axes</button>
       <button id="resetView" class="borderless">Reset view</button>
     </section>
 
@@ -997,6 +1012,71 @@ document.addEventListener('keydown', event => {
   }
 }, true);
 
+// Custom parameters are materialized so plots, gates and exports use the same values.
+let customAxes = [];
+function validateCustomAxes(definitions, plotSamples) {
+  if (!Array.isArray(definitions)) throw new Error('Invalid custom axes.');
+  const names = new Set();
+  for (const d of definitions) {
+    if (!d || typeof d.name !== 'string' || !d.name.trim() || names.has(d.name) || !['+','-','*','/'].includes(d.operator) || typeof d.left !== 'string' || typeof d.right !== 'string') throw new Error('Invalid custom axis definition.');
+    if (plotSamples.some(s=>s.params.includes(d.name) && !s.customAxisNames?.includes(d.name))) throw new Error('A parameter already has that name.');
+    names.add(d.name);
+  }
+  if (definitions.some(d=>names.has(d.left) || names.has(d.right))) throw new Error('Choose original parameters for custom axes.');
+  return definitions.map(d=>({name:d.name,left:d.left,right:d.right,operator:d.operator}));
+}
+function applyCustomAxes(sample, definitions) {
+  const keep=sample.params.map((_,i)=>i).filter(i=>!sample.customAxisNames?.includes(sample.params[i]));
+  const raw=sample.rawData || sample.data;
+  sample.params=keep.map(i=>sample.params[i]);
+  sample.data=keep.map(i=>sample.data[i]);sample.rawData=keep.map(i=>raw[i]);
+  for (const key of ['paramDetectors','paramStains']) if(sample[key]) sample[key]=keep.map(i=>sample[key][i] || '');
+  sample.customAxisNames=[];
+  for (const d of definitions) {
+    const a=sample.params.indexOf(d.left),b=sample.params.indexOf(d.right);
+    const values=Float64Array.from({length:sample.n},(_,i)=>{
+      const x=sample.data[a]?.[i],y=sample.data[b]?.[i];
+      if(!Number.isFinite(x)||!Number.isFinite(y)) return NaN;
+      const v=d.operator==='+'?x+y:d.operator==='-'?x-y:d.operator==='*'?x*y:y===0?NaN:x/y;
+      return Number.isFinite(v)?v:NaN;
+    });
+    sample.params.push(d.name);sample.data.push(values);sample.rawData.push(values);
+    if(sample.paramDetectors) sample.paramDetectors.push(d.name);
+    if(sample.paramStains) sample.paramStains.push('');
+    sample.customAxisNames.push(d.name);
+  }
+}
+function refreshCustomAxesEditor() {
+  const params=[...new Set(samples.flatMap(s=>s.params.filter(p=>!s.customAxisNames?.includes(p))))];
+  for(const id of ['customAxisLeft','customAxisRight']) {
+    const select=byId(id);select.replaceChildren();
+    params.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;select.append(o);});
+  }
+  const list=byId('customAxisList');list.replaceChildren();
+  customAxes.forEach(d=>{
+    const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0';
+    const label=document.createElement('span');label.textContent=`${d.name} = ${d.left} ${d.operator} ${d.right}`;
+    const remove=document.createElement('button');remove.textContent='Delete';remove.className='secondary';
+    remove.addEventListener('click',()=>{
+      if(gates.some(g=>g.xParam===d.name || g.yParam===d.name)){byId('customAxisError').textContent='Delete gates using this axis before removing it.';return;}
+      customAxes=customAxes.filter(a=>a.name!==d.name);delete paramSettings[d.name];
+      samples.forEach(s=>applyCustomAxes(s,customAxes));refreshParamOptions();autoRangesFromData();markGatePercentDirty();render();refreshCustomAxesEditor();
+    });row.append(label,remove);list.append(row);
+  });
+  byId('customAxisError').textContent='';
+}
+byId('customAxesButton').addEventListener('click',()=>{refreshCustomAxesEditor();openModal(byId('customAxesModal'));});
+byId('cancelCustomAxes').addEventListener('click',()=>closeModal(byId('customAxesModal')));
+byId('addCustomAxis').addEventListener('click',()=>{
+  try {
+    const d={name:byId('customAxisName').value.trim(),left:byId('customAxisLeft').value,right:byId('customAxisRight').value,operator:byId('customAxisOperator').value};
+    if(!d.left || !d.right) throw new Error('Load samples and choose two parameters first.');
+    customAxes=validateCustomAxes([...customAxes,d],samples);
+    samples.forEach(s=>applyCustomAxes(s,customAxes));refreshParamOptions();markGatePercentDirty();render();
+    byId('customAxisName').value='';refreshCustomAxesEditor();
+  } catch(error){byId('customAxisError').textContent=error.message;}
+});
+
 // ---------------------------- Compensation ----------------------------
 function sampleDetectorNames(sample) {
   return sample.paramDetectors?.length === sample.params.length ? sample.paramDetectors : sample.params;
@@ -1007,6 +1087,7 @@ function compensationChannelCatalog() {
   samples.forEach(sample => {
     const detectors = sampleDetectorNames(sample);
     detectors.forEach((detector, index) => {
+      if(sample.customAxisNames?.includes(sample.params[index])) return;
       const key = String(detector || sample.params[index] || `P${index + 1}`).trim();
       if (!key) return;
       const stain = String(sample.paramStains?.[index] || '').trim();
@@ -1165,6 +1246,7 @@ function applyCompensationState(nextState, { refresh = true } = {}) {
   const operator = normalized.enabled ? compensationOperator(normalized) : null;
   const affectedState = { channels: Array.from(new Set([...compensationState.channels, ...normalized.channels])) };
   samples.forEach(sample => applyCompensationToSample(sample, normalized, operator));
+  samples.forEach(sample=>applyCustomAxes(sample,customAxes));
   compensationState = normalized;
   resetCompensatedAxisRanges(affectedState);
   markGatePercentDirty();
@@ -1446,6 +1528,8 @@ async function addSampleFromBuffer(buffer, name) {
   sample.color = palette[samples.length % palette.length];
   sample.rawData = sample.data;
   if (compensationState.enabled) applyCompensationToSample(sample, compensationState);
+  validateCustomAxes(customAxes,[sample]);
+  applyCustomAxes(sample,customAxes);
   samples.push(sample);
   visibleSampleIds.add(sample.id);
 }
@@ -5024,6 +5108,7 @@ function drawHistGatesPDF(pdf, area, isLightMode, options = {}, isOffset = false
         const rw = Math.abs(xs.fwd(x1) - xs.fwd(x0));
 
         if (options.showGates) {
+          pdf.saveGraphicsState();pdf.rect(x,y,w,h);pdf.clip();pdf.discardPath();
           const bands=isOffset ? gateOffsetBands(g,visSamples,y,h) : [{y:gy,h:gh}];
           bands.forEach(({y:gy,h:gh})=>{
             pdf.setFillColor(strokeColor.r, strokeColor.g, strokeColor.b);
@@ -5035,6 +5120,7 @@ function drawHistGatesPDF(pdf, area, isLightMode, options = {}, isOffset = false
             pdf.line(rx, gy, rx, gy + gh);
             pdf.line(rx + rw, gy, rx + rw, gy + gh);
           });
+          pdf.restoreGraphicsState();
         }
 
         if (options.showPercent) {
@@ -5272,7 +5358,7 @@ ui.confirmStatsExport.addEventListener('click', () => {
 
 function serializeWorkspace() {
   return {
-    version: 2,
+    version: 2, customAxes,
     samples: samples.map(s => {
       const { rawData, compensationApplied, ...storedSample } = s;
       return {...storedSample, data: Array.from(rawData || s.data, d => Array.from(d))};
@@ -5298,6 +5384,8 @@ function prepareWorkspace(workspace) {
     if (s.paramDetectors && (!Array.isArray(s.paramDetectors) || s.paramDetectors.length !== s.params.length || s.paramDetectors.some(n => typeof n !== 'string'))) fail('Invalid detector metadata.');
     return {...s, color: /^#[0-9a-f]{6}$/i.test(s.color) ? s.color : palette[0], data, rawData: data};
   });
+  const nextCustomAxes=validateCustomAxes(workspace.customAxes || [],nextSamples);
+  nextSamples.forEach(s=>applyCustomAxes(s,nextCustomAxes));
   const sampleIds = new Set(nextSamples.map(s => s.id));
   if (sampleIds.size !== nextSamples.length) fail('Duplicate sample IDs.');
   if (workspace.sampleGroups != null && !Array.isArray(workspace.sampleGroups)) fail('Invalid sample groups.');
@@ -5351,6 +5439,7 @@ function prepareWorkspace(workspace) {
   if (nextCompensation.enabled && nextCompensation.channels.length < 2) fail('Compensation requires at least two channels.');
   const operator = nextCompensation.enabled ? compensationOperator(nextCompensation) : null;
   nextSamples.forEach(s => applyCompensationToSample(s, nextCompensation, operator));
+  nextSamples.forEach(s=>applyCustomAxes(s,nextCustomAxes));
   const nextPlotType = workspace.plotType || 'scatter';
   if (!['scatter', 'scatter-grid', 'hist', 'hist-offset'].includes(nextPlotType)) fail('Invalid plot type.');
   const settings = Object.create(null);
@@ -5360,11 +5449,12 @@ function prepareWorkspace(workspace) {
     if (!value || !['linear','log'].includes(value.scale) || !finite(value.min) || !finite(value.max) || value.min >= value.max || (value.scale === 'log' && value.min <= 0)) fail('Invalid saved parameter range.');
     settings[key] = {...value};
   }
-  return {...workspace, sampleGroups:nextGroups, samples: nextSamples, gates: nextGates, axis: nextAxis, compensation: nextCompensation, plotType: nextPlotType, paramSettings: settings};
+  return {...workspace, customAxes:nextCustomAxes, sampleGroups:nextGroups, samples: nextSamples, gates: nextGates, axis: nextAxis, compensation: nextCompensation, plotType: nextPlotType, paramSettings: settings};
 }
 
 function restoreWorkspace(workspace) {
   const next = prepareWorkspace(workspace);
+  customAxes=next.customAxes;
   sampleGroups = next.sampleGroups; samples = next.samples; gates = next.gates; axis = next.axis;
   collapsedGateIds.clear();
   if (Array.isArray(next.collapsedGateIds)) next.collapsedGateIds.filter(id => gates.some(g => g.id === id)).forEach(id => collapsedGateIds.add(id));

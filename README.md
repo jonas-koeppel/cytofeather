@@ -138,3 +138,7 @@ The tests exercise the production parser, compensation, export, workspace, densi
 ## License
 
 This project is open source under the MIT License. See [LICENSE.md](LICENSE.md). Bundled dependencies and datasets retain their respective licenses; see [vendor/README.md](vendor/README.md) and [compensation control provenance](compensation_test_data/README.md).
+
+### Custom axes
+
+Use **Custom axes** in the Axes section to add a named sum, difference, product, or ratio of two original parameters. Select the result from either axis menu. Calculations use compensated values when enabled, and remain available for gating, statistics, and exports. Missing inputs, division by zero, and non-finite results are excluded. Definitions are saved in workspaces and applied to newly imported samples. Delete gates using a custom axis before deleting that axis.

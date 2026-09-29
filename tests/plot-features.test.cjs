@@ -9,7 +9,7 @@ new vm.Script(source);
 function appContext() {
   const context = vm.createContext({console,TextDecoder,Float64Array,Float32Array,Uint32Array,Uint8Array,DataView});
   vm.runInContext(`const TAU=Math.PI*2;let sampleGroups=[],samples=[],gates=[],currentPopulationId=null,axis={},visibleSampleIds=new Set();let plotStyle={scatterDotSize:1.5,scatterOpacity:.65,scatterGridPalette:'classic'};const ui={fileList:{children:[]}};`,context);
-  const names=['gateSampleGroupId','activeSampleGroupId','makeScaler','calculateDensityPoints','drawDensityDots','drawDensityDotsPDF','paletteColor','lerp','rgbToHex','hexToRgb','clampNumber','scatterDotSize','scatterOpacity','buildGatingStrategyPanels','buildGatingStrategyRows','strategyGatePoints','strategyAxisForPanel','strategyGateStats','strategyPanelSamples','strategyPdfText','drawStrategyAxesPDF','drawStrategyScatterPDF','drawStrategyHistogramPDF','drawStrategyGatePDF','gatingStrategyPagination','createGatingStrategyPDF','makePopulationFilter','pointInGate','valueOf','gateEffectiveSampleId','gateAppliesToSample','isSegmentGate','visibleSamples','transformAxisValue','inverseTransformAxisValue','getEllipseCenterT','gatePointToTransformed','pnpoly','getAxisTicks','getLogTicks','getLinearTicks','niceStep','formatExportTickLabel','formatNum','drawPdfSuperscriptText','parseSuperscriptToken','calculateHistogram','smoothHistogramBins'];
+  const names=['drawHistGatesPDF','gateSampleGroupId','activeSampleGroupId','makeScaler','calculateDensityPoints','drawDensityDots','drawDensityDotsPDF','paletteColor','lerp','rgbToHex','hexToRgb','clampNumber','scatterDotSize','scatterOpacity','buildGatingStrategyPanels','buildGatingStrategyRows','strategyGatePoints','strategyAxisForPanel','strategyGateStats','strategyPanelSamples','strategyPdfText','drawStrategyAxesPDF','drawStrategyScatterPDF','drawStrategyHistogramPDF','drawStrategyGatePDF','gatingStrategyPagination','createGatingStrategyPDF','makePopulationFilter','pointInGate','valueOf','gateEffectiveSampleId','gateAppliesToSample','isSegmentGate','visibleSamples','transformAxisValue','inverseTransformAxisValue','getEllipseCenterT','gatePointToTransformed','pnpoly','getAxisTicks','getLogTicks','getLinearTicks','niceStep','formatExportTickLabel','formatNum','drawPdfSuperscriptText','parseSuperscriptToken','calculateHistogram','smoothHistogramBins'];
   for(const name of names){
     const start=source.search(new RegExp(`function ${name}\\(`));assert.ok(start>=0,name);
     const firstLine=source.slice(start,source.indexOf('\n',start));
@@ -104,4 +104,15 @@ test('Strategy rows pack only applicable gates and separate overlapping sample g
   assert.ok(ids(grid[1]).includes(only.id));assert.ok(!ids(grid[0]).includes(only.id));
   c.window={jspdf:require('../vendor/jspdf.umd.min.js')};
   assert.equal(c.createGatingStrategyPDF({mode:'overlay',columns:1}).getNumberOfPages(),2);
+});
+
+
+test('Exported segment gates are clipped to the plot when their bounds extend outside it',()=>{
+  const c=appContext();c.setState({samples:[sample('a',[[100,1]])],gates:[{...gate('range'),type:'segment',def:{x0:10,x1:1000}}]});
+  vm.runInContext("axis={xMin:100,xMax:10000,xScale:'log'}",c);
+  c.gateVisibleForCurrentAxes=()=>true;
+  let clipped=false,depth=0,lines=0;
+  const pdf={saveGraphicsState(){depth++;},restoreGraphicsState(){depth--;clipped=false;},rect(){},clip(){clipped=true;},discardPath(){},setFillColor(){},setGState(){},GState:function(){},setDrawColor(){},setLineWidth(){},line(){assert.ok(clipped);assert.equal(depth,1);lines++;}};
+  c.drawHistGatesPDF(pdf,{x:80,y:20,w:200,h:200},true,{showGates:true,showPercent:false});
+  assert.equal(lines,2);assert.equal(depth,0);
 });
