@@ -9,7 +9,7 @@ new vm.Script(source);
 function appContext() {
   const context = vm.createContext({console,TextDecoder,Float64Array,Float32Array,Uint32Array,Uint8Array,DataView});
   vm.runInContext(`const TAU=Math.PI*2;let sampleGroups=[],samples=[],gates=[],currentPopulationId=null,axis={},visibleSampleIds=new Set();let plotStyle={scatterDotSize:1.5,scatterOpacity:.65,scatterGridPalette:'classic'};const ui={fileList:{children:[]}};`,context);
-  const names=['drawHistGatesPDF','gateSampleGroupId','activeSampleGroupId','makeScaler','calculateDensityPoints','drawDensityDots','drawDensityDotsPDF','paletteColor','lerp','rgbToHex','hexToRgb','clampNumber','scatterDotSize','scatterOpacity','buildGatingStrategyPanels','buildGatingStrategyRows','strategyGatePoints','strategyAxisForPanel','strategyGateStats','strategyPanelSamples','strategyPdfText','drawStrategyAxesPDF','drawStrategyScatterPDF','drawStrategyHistogramPDF','drawStrategyGatePDF','gatingStrategyPagination','createGatingStrategyPDF','makePopulationFilter','pointInGate','valueOf','gateEffectiveSampleId','gateAppliesToSample','isSegmentGate','visibleSamples','transformAxisValue','inverseTransformAxisValue','getEllipseCenterT','gatePointToTransformed','pnpoly','getAxisTicks','getLogTicks','getLinearTicks','niceStep','formatExportTickLabel','formatNum','drawPdfSuperscriptText','parseSuperscriptToken','calculateHistogram','smoothHistogramBins'];
+  const names=['pointInQuadrant','quadrantBasis','quadrantLines','quadrantAnchor','drawQuadrantPDF','drawHistGatesPDF','gateSampleGroupId','activeSampleGroupId','makeScaler','calculateDensityPoints','drawDensityDots','drawDensityDotsPDF','paletteColor','lerp','rgbToHex','hexToRgb','clampNumber','scatterDotSize','scatterOpacity','buildGatingStrategyPanels','buildGatingStrategyRows','strategyGatePoints','strategyAxisForPanel','strategyGateStats','strategyPanelSamples','strategyPdfText','drawStrategyAxesPDF','drawStrategyScatterPDF','drawStrategyHistogramPDF','drawStrategyGatePDF','gatingStrategyPagination','createGatingStrategyPDF','makePopulationFilter','pointInGate','valueOf','gateEffectiveSampleId','gateAppliesToSample','isSegmentGate','visibleSamples','transformAxisValue','inverseTransformAxisValue','getEllipseCenterT','gatePointToTransformed','pnpoly','getAxisTicks','getLogTicks','getLinearTicks','niceStep','formatExportTickLabel','formatNum','drawPdfSuperscriptText','parseSuperscriptToken','calculateHistogram','smoothHistogramBins'];
   for(const name of names){
     const start=source.search(new RegExp(`function ${name}\\(`));assert.ok(start>=0,name);
     const firstLine=source.slice(start,source.indexOf('\n',start));
@@ -115,4 +115,13 @@ test('Exported segment gates are clipped to the plot when their bounds extend ou
   const pdf={saveGraphicsState(){depth++;},restoreGraphicsState(){depth--;clipped=false;},rect(){},clip(){clipped=true;},discardPath(){},setFillColor(){},setGState(){},GState:function(){},setDrawColor(){},setLineWidth(){},line(){assert.ok(clipped);assert.equal(depth,1);lines++;}};
   c.drawHistGatesPDF(pdf,{x:80,y:20,w:200,h:200},true,{showGates:true,showPercent:false});
   assert.equal(lines,2);assert.equal(depth,0);
+});
+
+test('Real gating strategy PDFs support tilted quadrants and their child populations',()=>{
+  const c=appContext();
+  const qs=['UL','UR','LR','LL'].map((q,i)=>({id:'q'+i,name:'Q'+(i+1),type:'quad',quadId:'shared',parentId:null,xParam:'X',yParam:'Y',xScale:'linear',yScale:'linear',viewAxis:ax,def:{x:5,y:5,q,xSpan:10,ySpan:10,xAngle:.3,yAngle:-.2}}));
+  const state={samples:[sample('a',[[1,1],[3,7],[5,5],[8,8],[7,2]])],gates:[...qs,{...gate('child','q1'),viewAxis:ax}]};
+  c.setState(state);c.window={jspdf:require('../vendor/jspdf.umd.min.js')};
+  const before=JSON.stringify(state),pdf=c.createGatingStrategyPDF({mode:'grid',allEvents:true,columns:2});
+  assert.ok(pdf.output().startsWith('%PDF-'));assert.ok(pdf.output('arraybuffer').byteLength>2000);assert.equal(JSON.stringify(state),before);
 });

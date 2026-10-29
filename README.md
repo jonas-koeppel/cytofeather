@@ -11,12 +11,14 @@ For a quick first look, click **Example Data**, draw a rectangle gate around a p
 - Import `.fcs` and `.csv` files, including drag-and-drop loading into the empty plot workspace or Files panel.
 - Apply reversible manual fluorescence compensation with a detector-aware spillover matrix.
 - View samples as scatter overlays, scatter grids, histogram overlays, and histogram offsets, with overlay histograms normalized by peak or shown as event counts.
-- Draw rectangle, ellipse, polygon, and histogram segment gates.
+- Draw rectangle, ellipse, polygon, linked quadrant, and histogram segment gates. Tilt either quadrant divider independently by dragging it; move their shared centre to move all four populations.
 - Build hierarchical populations, including sample-specific gates and apply-to-sample or apply-to-all workflows.
 - Move and edit gates, labels, axes, sample colors, and grid column layout interactively.
 - Export publication-style plots as PDF or PNG.
 - Export gated populations and configurable statistics as CSV.
-- Save and reload workspace JSON files with samples, axes, gates, and view state.
+- Undo/redo analysis edits with the header buttons or ⌘Z / Ctrl+Z and ⇧⌘Z / Ctrl+Y (up to 100 steps).
+- Resize the Files and Stats/Gates sidebars by dragging their inner edges; double-click to reset. Widths are remembered in this browser.
+- Save and reload binary `.cytofeather` files or JSON workspaces with samples, axes, gates, and view state.
 - Use light or dark mode, with matching plot/export options.
 
 ## Getting Started
@@ -60,9 +62,17 @@ Population CSV exports align channels by name across samples; missing channels p
 5. Draw gates from the Gates panel.
 6. Double-click a gate in the plot or hierarchy to select that population.
 7. Use exports for figures, statistics, or event-level population data.
-8. Save a workspace JSON if you want to return to the session later.
+8. Save a workspace if you want to return to the session later.
 
 **Sessions are not automatically saved.** Save before closing or reloading the page. Workspaces contain raw sample data, gates, compensation, the selected plot/population, axis settings, styles, and theme. Treat workspace files with the same care as the original samples. Invalid workspace files are validated before replacing the current session; older unversioned workspaces remain supported.
+
+## Workspace files and undo
+
+**Workspace → Save Workspace (.cytofeather)** writes a binary file compatible with the V2 header/raw-column layout. **Save Workspace as JSON** remains available. **Load Workspace…** detects either format from its contents and validates it before replacing the current session. Raw values, compensation, custom arithmetic axes, and quadrant geometry are preserved; compensation is reconstructed rather than applied twice. Binary files preserve missing numeric values as NaN.
+
+V2 files with multiple diagrams open using their saved current plot; this version keeps a single-plot workspace and saves only that plot. Group metadata is retained, but V2 control overlays and multiple diagrams are not enabled here. Tilted quadrant metadata requires this updated app: the supplied V2 implementation only understands upright quadrants.
+
+Undo and redo cover gates (including deletion, centre movement and divider tilt), sample names, colors, order and visibility, sample groups, custom axes, compensation, and plot settings. Raw event columns are shared between history steps to avoid duplicating datasets. Opening a workspace resets undo history; history itself is not saved. Text fields retain their normal text undo shortcuts. Sidebar sizes are browser preferences and do not create analysis undo steps.
 
 ## Compensation
 
@@ -77,6 +87,8 @@ Applying the matrix updates plots, gates, statistics, and exports. Raw event val
 Top-level gates are drawn on All Events. Gates drawn while another population is selected become children of that population and only display when that parent population is active. In grid and offset views, gates can become sample-specific so individual samples can be adjusted independently.
 
 Right-click a gate to apply it to a sample or all samples. Sample-specific gates are marked in the hierarchy with the sample color.
+
+Press **Q** or choose the quadrant tool, then click the desired intersection in a scatter plot. Q1–Q4 are separate populations with a shared centre and two dividers. Hover over a divider to highlight it, then drag to tilt it independently; drag the centre to move the set. Tilting is defined in the gate's saved linear/log coordinates and remains stable when zooming. Events on dividing lines belong to the upper/right side, so finite events in the valid coordinate domain belong to exactly one quadrant. Copying to groups, applying to samples, and deleting operate on all four linked populations (and deletion removes their children).
 
 ## Exports
 
@@ -133,7 +145,7 @@ Run the dependency-free regression checks with Node.js 22 or later:
 node --test tests/*.test.cjs
 ```
 
-The tests exercise the production parser, compensation, export, workspace, density, and gating strategy functions, including all nine bundled FCS files and real PDF generation.
+The tests exercise the production parser, compensation, export, workspace, density, and gating strategy functions, including all nine bundled FCS files and real PDF generation. Additional workspace/tool checks cover tilted quadrant membership, linked edits and copies, matching canvas/PDF geometry, binary and JSON round trips, raw data and custom-axis preservation, and undo/redo.
 
 ## License
 

@@ -149,6 +149,8 @@
     .workspaceMenu, .exportMenu{position:absolute;right:0;top:calc(100% + 8px);display:none;min-width:190px;background:color-mix(in srgb, var(--panel) 98%, transparent);border:1px solid var(--border-color);border-radius:12px;box-shadow:0 18px 44px rgba(12,18,28,.16);padding:6px;z-index:30;backdrop-filter:blur(18px)}
     .workspaceMenu.open, .exportMenu.open{display:grid;gap:3px}
     .workspaceMenu button, .exportMenu button{justify-content:flex-start;width:100%;height:36px;background:transparent;border-color:transparent;border-radius:8px}
+    .workspaceMenu{width:max-content;max-width:calc(100vw - 24px)}
+    .workspaceMenu button{text-align:left}
     .workspaceMenu button:hover, .exportMenu button:hover{background:var(--hover-bg)}
     .contextMenu{position:fixed;display:none;min-width:190px;background:color-mix(in srgb, var(--panel) 98%, transparent);border:1px solid var(--border-color);border-radius:12px;box-shadow:0 18px 44px rgba(12,18,28,.18);padding:6px;z-index:60;backdrop-filter:blur(18px)}
     .contextMenu.open{display:grid;gap:3px}
@@ -232,7 +234,7 @@
     body{background:var(--bg);letter-spacing:-.006em;padding:0 24px}
     body:before{content:none}
     .app{
-      grid-template-columns:286px minmax(0,1fr) 286px;grid-template-rows:74px 1fr;gap:0;padding:0;
+      grid-template-columns:var(--left-w,286px) minmax(300px,1fr) var(--right-w,286px);grid-template-rows:74px 1fr;gap:0;padding:0;
       width:min(1500px,100%);max-width:1500px;min-height:calc(100dvh - 48px);margin:24px auto;
       overflow:hidden;background:var(--panel);border:1px solid color-mix(in srgb,var(--border-color) 90%,transparent);border-radius:26px;
       box-shadow:0 26px 72px rgba(24,24,21,.12),0 3px 12px rgba(24,24,21,.045);
@@ -341,7 +343,7 @@
     .compensationFeedback{min-height:18px;margin:10px 2px 0;color:var(--muted);font-size:11px}
     .compensationFeedback.is-error{color:var(--bad)}
     @media(max-width:1240px){
-      body{padding:0 16px}.app{grid-template-columns:280px minmax(0,1fr);margin:16px auto;min-height:calc(100dvh - 32px)}header{grid-column:1/3}.right{grid-column:1/3;display:grid;grid-template-columns:minmax(240px,320px) minmax(0,1fr);gap:10px 24px;border-left:0;border-top:1px solid var(--border-color)}.right>h3:first-of-type{grid-column:1;grid-row:1}.right>.stats{grid-column:1;grid-row:2/5}.right>.sep{display:none}.right>h3:nth-of-type(2){grid-column:2;grid-row:1}.right>.gateTools{grid-column:2;grid-row:2;max-width:340px}.right>label{grid-column:2;grid-row:3;margin-top:0}.right>.tree,.right>#gatesEmptyState{grid-column:2;grid-row:4}
+      body{padding:0 16px}.app{grid-template-columns:var(--left-w,280px) minmax(300px,1fr);margin:16px auto;min-height:calc(100dvh - 32px)}header{grid-column:1/3}.right{grid-column:1/3;display:grid;grid-template-columns:minmax(240px,320px) minmax(0,1fr);gap:10px 24px;border-left:0;border-top:1px solid var(--border-color)}.right>h3:first-of-type{grid-column:1;grid-row:1}.right>.stats{grid-column:1;grid-row:2/5}.right>.sep{display:none}.right>h3:nth-of-type(2){grid-column:2;grid-row:1}.right>.gateTools{grid-column:2;grid-row:2;max-width:340px}.right>label{grid-column:2;grid-row:3;margin-top:0}.right>.tree,.right>#gatesEmptyState{grid-column:2;grid-row:4}
     }
     @media(max-width:900px){
       body{padding:0 10px}.app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto auto auto;margin:10px auto;min-height:calc(100dvh - 20px);border-radius:20px}.left,.mid,.right,header{grid-column:1;min-width:0}header{grid-template-columns:minmax(0,1fr) auto;padding:12px 16px;row-gap:10px;min-height:0}.brand{grid-column:1;grid-row:1}.theme-switch-wrapper{grid-column:2;grid-row:1;margin-left:0}header .btns{grid-column:1/3;grid-row:2;width:100%;justify-content:flex-start}.toolbarButton span:not([aria-hidden="true"]){display:none}.toolbarButton{width:38px;padding:0}.workspaceMenu,.exportMenu{left:0;right:auto}.mid{order:2;min-height:0;padding:20px}.left{order:3;border-right:0;border-top:1px solid var(--border-color)}.right{order:4;display:block;border-left:0;border-top:1px solid var(--border-color)}.right>.sep{display:block}.right>.gateTools{max-width:none}.canvasWelcome{padding:20px}.exportOptionGrid{grid-template-columns:1fr}
@@ -375,12 +377,20 @@
     .sampleGroupLink{display:inline-block;width:auto;height:auto;margin-top:12px;padding:0;background:transparent;border:0;border-radius:0;box-shadow:none;color:var(--muted);font-size:12px;font-weight:400;cursor:pointer}
     .sampleGroupLink:hover{background:transparent;color:var(--text);text-decoration:underline;text-underline-offset:3px}
     .sampleGroupLink:focus-visible{outline:2px solid var(--muted);outline-offset:4px}
+    .left,.right{position:relative}
+    .sideResizer{position:absolute;top:0;bottom:0;width:10px;z-index:10;cursor:col-resize;touch-action:none;outline-offset:-3px}
+    .left .sideResizer{right:-5px}.right .sideResizer{left:-5px}
+    .sideResizer:focus-visible,.sideResizer.is-dragging{background:color-mix(in srgb,var(--accent) 24%,transparent)}
+    body.is-col-resizing{cursor:col-resize;user-select:none}
+    .historyButton{width:34px;padding:0}.historyButton svg{width:18px;height:18px}
+    @media(max-width:1240px){.right .sideResizer{display:none}}
+    @media(max-width:900px){.sideResizer{display:none}}
   </style>
   <script defer src="./vendor/jspdf.umd.min.js"></script>
 </head>
 <body data-theme="light">
   <input type="color" id="colorPicker" style="visibility: hidden; position: absolute; top: -100px;">
-  <input type="file" id="loadWorkspaceInput" accept=".json" style="display:none">
+  <input type="file" id="loadWorkspaceInput" style="display:none">
 
   <div class="modal-overlay" id="customAxesModal">
     <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="customAxesTitle">
@@ -613,7 +623,8 @@
           </button>
           <div class="workspaceMenu" id="workspaceMenu" role="menu" aria-label="Workspace">
             <button id="loadWorkspace" type="button" role="menuitem">Load Workspace…</button>
-            <button id="saveWorkspace" type="button" role="menuitem">Save Workspace</button>
+            <button id="saveWorkspace" type="button" role="menuitem">Save Workspace (.cytofeather)</button>
+            <button id="saveWorkspaceJSON" type="button" role="menuitem">Save Workspace as JSON</button>
           </div>
         </div>
         <div class="exportWrap">
@@ -629,6 +640,8 @@
             <button id="menuExportCSV" type="button">Population (CSV)</button>
           </div>
         </div>
+        <button id="undoButton" class="toolbarButton historyButton" type="button" aria-label="Undo" title="Undo (⌘Z / Ctrl+Z)" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5 4 10l5 5M4 10h10a6 6 0 0 1 0 12"/></svg></button>
+        <button id="redoButton" class="toolbarButton historyButton" type="button" aria-label="Redo" title="Redo (⇧⌘Z / Ctrl+Y)" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5 5 5-5 5m5-5H10a6 6 0 0 0 0 12"/></svg></button>
       </div>
       <div class="theme-switch-wrapper">
         <label class="theme-switch" for="themeToggle" title="Toggle light/dark mode" aria-label="Toggle light/dark mode">
@@ -642,6 +655,7 @@
     </header>
 
     <section class="col left">
+      <div id="leftResizer" class="sideResizer" role="separator" aria-label="Resize Files sidebar" aria-orientation="vertical" tabindex="0" title="Drag to resize; double-click to reset"></div>
       <h3>Files</h3>
       <div id="fileList" class="files"></div>
       <div id="filesEmptyState" class="emptyState">
@@ -743,6 +757,7 @@
     </section>
 
     <section class="col right">
+      <div id="rightResizer" class="sideResizer" role="separator" aria-label="Resize Stats and Gates sidebar" aria-orientation="vertical" tabindex="0" title="Drag to resize; double-click to reset"></div>
       <h3>Stats</h3>
       <div class="stats" id="statsBox"></div>
       <div class="sep"></div>
@@ -760,6 +775,7 @@
         <button class="gateToolButton" data-tool="poly" title="Polygon (P)" aria-label="Polygon gate">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4.5 19 9.7 16.2 18h-8.4L5 9.7z"/></svg>
         </button>
+        <button class="gateToolButton" data-tool="quad" title="Quadrant (Q)" aria-label="Quadrant gate"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="2"/></svg></button>
         <button class="gateToolButton" data-tool="segment" title="Histogram segment gate (G)" aria-label="Histogram segment gate">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6v12"/><path d="M18 6v12"/><path d="M6 12h12"/></svg>
         </button>
@@ -774,7 +790,8 @@
         <p>Start with <b>Example Data</b> in Files, or add your own FCS or CSV files. Choose your parameters and plot type in Data.</p>
         <p>Choose a gate tool, then drag on the plot. For a polygon, click its corners and press Enter or double-click to finish. Double-click a gate to view its population and draw child gates.</p>
         <p>Right-click gates to apply them across samples. Click an axis label to change its range; right-click the plot to adjust its style.</p>
-        <p><b>Shortcuts:</b> S select · R rectangle · E ellipse · P polygon · G histogram segment · Z zoom · Esc cancel.</p>
+        <p>Quadrants: press Q and click the intersection. Drag the centre to move all four gates; hover over either divider and drag to tilt it. Undo with ⌘Z / Ctrl+Z; redo with ⇧⌘Z / Ctrl+Y. Drag sidebar edges to resize, or double-click to reset.</p>
+        <p><b>Shortcuts:</b> Q quadrant · S select · R rectangle · E ellipse · P polygon · G histogram segment · Z zoom · Esc cancel.</p>
         <p>Use <b>Workspace → Save Workspace</b> before closing or reloading. Sessions are not saved automatically.</p>
         <p>Files and exports stay on your device. Workspace files contain your sample data. Desktop browsers with a mouse or trackpad work best for gating.</p>
         <p><a href="https://github.com/jonas-koeppel/flowfeather#readme" target="_blank" rel="noopener noreferrer">Documentation</a> · <a href="https://github.com/jonas-koeppel/flowfeather/issues" target="_blank" rel="noopener noreferrer">Report an issue</a></p>
@@ -894,6 +911,9 @@ const DEFAULT_PLOT_STYLE = { scatterDotSize: 1.5, scatterOpacity: 0.65, histLine
 let plotStyle = {...DEFAULT_PLOT_STYLE};
 let compensationState = { enabled: false, channels: [], matrix: [] };
 let compensationDraft = null;
+const undoHistory = {undo: [], redo: [], current: null, key: '', timer: null, restoring: false};
+const HISTORY_LIMIT = 100;
+let hoverQuadrant = null;
 const EXAMPLE_DATA_FILES = [
     'example_data/03-Well-B1.fcs',
     'example_data/03-Well-B2.fcs',
@@ -949,7 +969,8 @@ function syncToolAvailability() {
     const segmentBtn = document.querySelector('[data-tool="segment"]');
     const ellipseBtn = document.querySelector('[data-tool="ellipse"]');
     const polyBtn = document.querySelector('[data-tool="poly"]');
-    [rectBtn, segmentBtn, ellipseBtn, polyBtn].forEach(btn => {
+    const quadBtn = document.querySelector('[data-tool="quad"]');
+    [rectBtn, segmentBtn, ellipseBtn, polyBtn, quadBtn].forEach(btn => {
         if (!btn) return;
         if (!btn.dataset.defaultTitle) btn.dataset.defaultTitle = btn.title || '';
         if (btn === segmentBtn) {
@@ -966,7 +987,7 @@ function syncToolAvailability() {
             btn.title = isHist ? `${btn.dataset.defaultTitle} (Unavailable in histogram mode)` : btn.dataset.defaultTitle;
         }
     });
-    if (isHist && (tool === 'ellipse' || tool === 'poly' || tool === 'rect')) setTool('segment');
+    if (isHist && (tool === 'ellipse' || tool === 'poly' || tool === 'rect' || tool === 'quad')) setTool('segment');
     if (!isHist && tool === 'segment') setTool('select');
 }
 
@@ -2568,7 +2589,7 @@ function render(targetCtx = ctx, isExport = false, exportOptions = {}){
     drawCanvasAxisTitles(targetCtx, w, h);
   }
 
-  if (!isExport) updateStats();
+    if (!isExport) { updateStats(); scheduleHistoryCommit(); }
 }
 
 function drawScatterPlot(targetCtx, isExport, exportOptions, width, height){
@@ -2617,7 +2638,7 @@ function drawGatesInGridCell(targetCtx, cellArea, sample, isExport = false, expo
             targetCtx.strokeStyle = stroke;
             targetCtx.lineWidth = editingGate.id === g.id ? 2 : 1;
             targetCtx.fillStyle = (gateSampleGroupId(g) || gateEffectiveSampleId(g)) ? hexToRGBA(stroke, 0.08) : getComputedStyle(document.body).getPropertyValue('--gate-fill');
-            if (g.type==='rect'){
+            if (g.type==='quad') { drawQuadrantCanvas(targetCtx,g,cellArea); } else if (g.type==='rect'){
                 const {x0,y0,x1,y1} = g.def; const rx = x + xs.fwd(Math.min(x0,x1)); const ry = y + h - ys.fwd(Math.max(y0,y1)); const rw = Math.abs(xs.fwd(x1)-xs.fwd(x0)); const rh = Math.abs(ys.fwd(y1)-ys.fwd(y0));
                 targetCtx.beginPath(); targetCtx.rect(rx, ry, rw, rh); targetCtx.fill(); targetCtx.stroke();
             } else if (g.type==='poly' && !isHist){
@@ -2912,7 +2933,7 @@ function drawGates(targetCtx, width, height, isExport = false, exportOptions = {
         targetCtx.lineWidth = isEditing ? 2 : 1.25;
         targetCtx.fillStyle = (gateSampleGroupId(g) || gateEffectiveSampleId(g)) ? hexToRGBA(stroke, 0.08) : getComputedStyle(document.body).getPropertyValue('--gate-fill');
         
-        if (g.type==='rect'){
+        if (g.type==='quad') { drawQuadrantCanvas(targetCtx,g,area); } else if (g.type==='rect'){
             const {x0,y0,x1,y1} = g.def; const rx = x + xs.fwd(Math.min(x0,x1)); const ry = y + h - ys.fwd(Math.max(y0,y1)); const rw = Math.abs(xs.fwd(x1)-xs.fwd(x0)); const rh = Math.abs(ys.fwd(y1)-ys.fwd(y0));
             targetCtx.beginPath(); targetCtx.rect(rx, ry, rw, rh); targetCtx.fill(); targetCtx.stroke();
         } else if (isSegmentGate(g)) {
@@ -2958,6 +2979,7 @@ function drawGateHandles(targetCtx, g, width, height, areaOverride = null) {
 }
 
 function getGateHandleLayouts(g, area = plotArea()) {
+    if (g.type === 'quad') { const p = dataToScreenPoint(g.def, area); return [{type:'quad',role:'center',px:p.x,py:p.y}]; }
     const {x,y,w,h} = area;
     const xs=makeScaler(axis.xMin,axis.xMax,axis.xScale,w);
     const ys=makeScaler(axis.yMin,axis.yMax,axis.yScale,h);
@@ -3064,8 +3086,13 @@ function copyGateBranchToGroup(gateId, groupId) {
     gates.push(clone); copied.set(g.id,clone); return clone;
   }
   const result = copy(source);
-  const descendants = gateAndDescendantIds(source.id);
+  const descendants = new Set();
+  quadSiblings(source).forEach(q=>gateAndDescendantIds(q.id).forEach(id=>descendants.add(id)));
   original.filter(g=>descendants.has(g.id)).forEach(copy);
+  // Keep linked quadrant siblings together, including copied ancestors.
+  for (const id of copied.keys()) {const g=original.find(g=>g.id===id);if(g?.type==='quad') quadSiblings(g).filter(q=>original.includes(q)).forEach(copy);}
+  const quadIds=new Map();
+  for(const [id,clone] of copied) {const g=original.find(g=>g.id===id);if(g?.type!=='quad' || clone===g)continue;const key=g.quadId;if(!quadIds.has(key))quadIds.set(key,clone.quadId!==g.quadId?clone.quadId:newQuadId());clone.quadId=quadIds.get(key);}
   return result;
 }
 function applyGateToGroup(gateId, groupId) {
@@ -3151,6 +3178,222 @@ function gridColumnCount(nSamples) {
     if (requested !== 'auto') return Math.max(1, Math.min(nSamples || 1, parseInt(requested, 10) || 1));
     return Math.ceil(Math.sqrt(nSamples));
 }
+// ---------------------------- Linked, tiltable quadrants ----------------------------
+function quadSiblings(g) {
+    if (g?.type !== 'quad') return g ? [g] : [];
+    return gates.filter(q => q.type === 'quad' && q.quadId === g.quadId && (q.parentId || null) === (g.parentId || null) && (q.groupId || null) === (g.groupId || null) && (q.sampleId || null) === (g.sampleId || null));
+}
+function validateQuadrantSets(gateList) {
+    const sets=new Map();
+    for(const g of gateList){
+        if(g.type!=='quad')continue;
+        const key=JSON.stringify([g.quadId,g.parentId||null,g.groupId||null,g.sampleId||null]);
+        if(!sets.has(key))sets.set(key,[]);sets.get(key).push(g);
+    }
+    for(const set of sets.values()){
+        if(set.length!==4 || new Set(set.map(g=>g.def.q)).size!==4)throw new Error('A quadrant gate must contain four linked populations.');
+        const first=set[0],geometry=g=>JSON.stringify([g.xParam,g.yParam,g.xScale,g.yScale,g.def.x,g.def.y,quadrantBasis(g)]);
+        if(set.some(g=>geometry(g)!==geometry(first) || JSON.stringify(g.excludeSampleIds||[])!==JSON.stringify(first.excludeSampleIds||[])))throw new Error('Linked quadrant populations must share their dividers and sample scope.');
+    }
+}
+function newQuadId() { return `Q-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`; }
+function quadrantBasis(g) {
+    const view=g.viewAxis || {};
+    const span = dim => {
+        const stored=g.def[dim+'Span'];
+        if(Number.isFinite(stored) && stored>0)return stored;
+        const n=transformAxisValue(view[dim+'Max'],g[dim+'Scale'])-transformAxisValue(view[dim+'Min'],g[dim+'Scale']);
+        return Number.isFinite(n) && n>0 ? n : 1;
+    };
+    return {x:transformAxisValue(g.def.x,g.xScale), y:transformAxisValue(g.def.y,g.yScale), sx:span('x'), sy:span('y'), a:g.def.xAngle || 0, b:g.def.yAngle || 0};
+}
+function pointInQuadrant(g,x,y) {
+    const c=quadrantBasis(g),dx=(transformAxisValue(x,g.xScale)-c.x)/c.sx,dy=(transformAxisValue(y,g.yScale)-c.y)/c.sy;
+    if(!Number.isFinite(dx) || !Number.isFinite(dy))return false;
+    // Boundaries belong to the right/upper side, so each event belongs to exactly one quadrant.
+    const right=dx*Math.cos(c.b)+dy*Math.sin(c.b)>=-1e-12;
+    const up=-dx*Math.sin(c.a)+dy*Math.cos(c.a)>=-1e-12;
+    return right===(g.def.q==='UR'||g.def.q==='LR') && up===(g.def.q==='UR'||g.def.q==='UL');
+}
+function setQuadCenter(g,x,y) {
+    if(!Number.isFinite(x)||!Number.isFinite(y)||(g.xScale==='log'&&x<=0)||(g.yScale==='log'&&y<=0))return;
+    quadSiblings(g).forEach(q=>{q.def.x=x;q.def.y=y;});
+}
+function tiltQuadrant(g,role,data) {
+    const c=quadrantBasis(g),dx=(transformAxisValue(data.x,g.xScale)-c.x)/c.sx,dy=(transformAxisValue(data.y,g.yScale)-c.y)/c.sy;
+    if(!Number.isFinite(dx)||!Number.isFinite(dy)||Math.hypot(dx,dy)<1e-8)return;
+    let angle=role==='rotate-x'?Math.atan2(dy,dx):Math.atan2(-dx,dy);
+    while(angle>Math.PI/2)angle-=Math.PI;
+    while(angle<-Math.PI/2)angle+=Math.PI;
+    const other=role==='rotate-x'?c.b:c.a,limit=Math.PI/2-.12;
+    angle=Math.max(-1.35,other-limit,Math.min(1.35,other+limit,angle));
+    quadSiblings(g).forEach(q=>{q.def[role==='rotate-x'?'xAngle':'yAngle']=angle;});
+}
+function createQuadGate(data,sampleId) {
+    if(!Number.isFinite(data.x)||!Number.isFinite(data.y))return;
+    const quadId=newQuadId(),parentId=parentIdForNewGate(sampleId),groupId=activeSampleGroupId();
+    const xSpan=transformAxisValue(axis.xMax,axis.xScale)-transformAxisValue(axis.xMin,axis.xScale);
+    const ySpan=transformAxisValue(axis.yMax,axis.yScale)-transformAxisValue(axis.yMin,axis.yScale);
+    const created=['UL','UR','LR','LL'].map((q,i)=>({id:idGen(),name:`Q${i+1}: ${axis.xParam}${q.includes('R')?'+':'−'} ${axis.yParam}${q.includes('U')?'+':'−'}`,type:'quad',quadId,parentId,groupId,sampleId:sampleId||null,xParam:axis.xParam,yParam:axis.yParam,xScale:axis.xScale,yScale:axis.yScale,viewAxis:{...axis},def:{x:data.x,y:data.y,q,xAngle:0,yAngle:0,xSpan,ySpan}}));
+    gates.push(...created);editingGate.id=created[1].id;markGatePercentDirty();refreshPopulationOptions();rebuildGateTree();setTool('select');render();
+}
+// Clip the divider in the gate's transformed space, then map it into the displayed axes.
+// Sampling also keeps the boundary faithful when the displayed scale differs from the gate's scale.
+function quadrantLines(g,area,view=axis) {
+    const c=quadrantBasis(g);
+    const bounds=dim=>[transformAxisValue(g[dim+'Scale']==='log'?Math.max(1e-12,view[dim+'Min']):view[dim+'Min'],g[dim+'Scale']),transformAxisValue(view[dim+'Max'],g[dim+'Scale'])];
+    const xb=bounds('x'),yb=bounds('y');
+    const xs=makeScaler(view.xMin,view.xMax,view.xScale,area.w),ys=makeScaler(view.yMin,view.yMax,view.yScale,area.h);
+    return [{role:'rotate-x',dx:Math.cos(c.a)*c.sx,dy:Math.sin(c.a)*c.sy},{role:'rotate-y',dx:-Math.sin(c.b)*c.sx,dy:Math.cos(c.b)*c.sy}].map(line=>{
+        let lo=-Infinity,hi=Infinity;
+        for(const [center,d,b] of [[c.x,line.dx,xb],[c.y,line.dy,yb]]){
+            if(Math.abs(d)<1e-15){if(center<b[0]||center>b[1])return {...line,points:[]};continue;}
+            const a=(b[0]-center)/d,z=(b[1]-center)/d;lo=Math.max(lo,Math.min(a,z));hi=Math.min(hi,Math.max(a,z));
+        }
+        if(!Number.isFinite(lo)||!Number.isFinite(hi)||lo>hi)return {...line,points:[]};
+        const steps=g.xScale===view.xScale&&g.yScale===view.yScale?1:64;
+        const points=Array.from({length:steps+1},(_,i)=>{
+            const t=lo+(hi-lo)*i/steps;
+            return {x:Math.max(area.x,Math.min(area.x+area.w,area.x+xs.fwd(inverseTransformAxisValue(c.x+t*line.dx,g.xScale)))),y:Math.max(area.y,Math.min(area.y+area.h,area.y+area.h-ys.fwd(inverseTransformAxisValue(c.y+t*line.dy,g.yScale))))};
+        }).filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.y));
+        return {...line,points};
+    });
+}
+function quadrantAnchor(g,view=axis) {
+    const c=quadrantBasis(g),right=g.def.q.includes('R')?1:-1,up=g.def.q.includes('U')?1:-1;
+    const det=Math.cos(c.a-c.b);
+    const dx=(Math.cos(c.a)*right-Math.sin(c.b)*up)/det*c.sx,dy=(Math.sin(c.a)*right+Math.cos(c.b)*up)/det*c.sy;
+    let t=Infinity;
+    for(const [dim,center,d] of [['x',c.x,dx],['y',c.y,dy]]){
+        if(Math.abs(d)<1e-15)continue;
+        const edge=transformAxisValue(view[dim+(d>0?'Max':'Min')],g[dim+'Scale']);
+        t=Math.min(t,(edge-center)/d);
+    }
+    if(!Number.isFinite(t)||t<=0)t=.15;
+    return {x:inverseTransformAxisValue(c.x+dx*t*.7,g.xScale),y:inverseTransformAxisValue(c.y+dy*t*.7,g.yScale)};
+}
+function drawQuadrantCanvas(targetCtx,g,area) {
+    if(quadSiblings(g)[0]?.id!==g.id)return;
+    targetCtx.save();targetCtx.beginPath();targetCtx.rect(area.x,area.y,area.w,area.h);targetCtx.clip();
+    quadrantLines(g,area).forEach(line=>{
+        const hovered=hoverQuadrant?.g.quadId===g.quadId && hoverQuadrant.role===line.role;
+        targetCtx.lineWidth=hovered?3:1.3;
+        if(hovered)targetCtx.strokeStyle=getComputedStyle(document.body).getPropertyValue('--gate-selection');
+        targetCtx.beginPath();line.points.forEach((p,i)=>i?targetCtx.lineTo(p.x,p.y):targetCtx.moveTo(p.x,p.y));targetCtx.stroke();
+    });targetCtx.restore();
+}
+function drawQuadrantPDF(pdf,g,area,view=axis) {
+    pdf.saveGraphicsState();pdf.rect(area.x,area.y,area.w,area.h);pdf.clip();pdf.discardPath();
+    quadrantLines(g,area,view).forEach(line=>{for(let i=1;i<line.points.length;i++){const a=line.points[i-1],b=line.points[i];pdf.line(a.x,a.y,b.x,b.y);}});
+    pdf.restoreGraphicsState();
+}
+function hitQuadrantDivider(px,py,area,sampleId) {
+    const candidates=gates.filter(g=>g.type==='quad'&&gateVisibleForCurrentAxes(g,sampleId));
+    // A nested regular gate still takes precedence away from the divider itself.
+    for(const g of candidates){
+        const p=dataToScreenPoint(g.def,area);
+        if(Math.hypot(px-p.x,py-p.y)<10)return {g,role:'center'};
+        for(const line of quadrantLines(g,area))for(let i=1;i<line.points.length;i++){
+            const a=line.points[i-1],b=line.points[i],dx=b.x-a.x,dy=b.y-a.y;
+            const t=Math.max(0,Math.min(1,((px-a.x)*dx+(py-a.y)*dy)/(dx*dx+dy*dy||1)));
+            if(Math.hypot(px-a.x-t*dx,py-a.y-t*dy)<6)return {g,role:line.role};
+        }
+    }
+    return null;
+}
+
+// ---------------------------- Undo / redo ----------------------------
+function historyState() {
+    const clone=v=>JSON.parse(JSON.stringify(v));
+    const ordered=Array.from(ui.fileList.children).map(row=>row.dataset.sampleId);
+    return {version:2,customAxes:clone(customAxes),gates:clone(gates),sampleGroups:clone(sampleGroups),
+        samples:ordered.map(id=>samples.find(s=>s.id===id)).filter(Boolean).map(s=>({...s,params:s.params.slice(),paramDetectors:s.paramDetectors?.slice(),paramStains:s.paramStains?.slice(),customAxisNames:s.customAxisNames?.slice(),data:(s.rawData||s.data).slice(),rawData:undefined})),
+        axis:{...axis},compensation:clone(compensationState),visibleSampleIds:Array.from(visibleSampleIds),currentPopulationId,
+        collapsedGateIds:Array.from(collapsedGateIds),plotStyle:{...plotStyle},plotType:ui.plotType.value,gridCols:ui.gridCols.value,paramSettings:clone(paramSettings),theme:document.body.dataset.theme};
+}
+function historyKey(state) {
+    return JSON.stringify([state.customAxes,state.gates.map(g=>({...g,labelPos:g.labelPos?.manual?g.labelPos:undefined,sampleLabelPos:g.sampleLabelPos?Object.fromEntries(Object.entries(g.sampleLabelPos).filter(([,p])=>p.manual)):undefined})),state.sampleGroups,
+        state.samples.map(s=>({id:s.id,name:s.name,color:s.color,params:s.params})),state.axis,state.compensation,state.visibleSampleIds,state.plotStyle,state.plotType,state.gridCols,state.paramSettings,state.theme]);
+}
+function historyBusy() { return !!(drawState || gateDragState || labelDragGateId || editingGate.handle || document.activeElement?.isContentEditable); }
+function scheduleHistoryCommit() {
+    if(undoHistory.restoring)return;
+    clearTimeout(undoHistory.timer);undoHistory.timer=setTimeout(commitHistory,250);
+}
+function updateHistoryButtons() {
+    byId('undoButton').disabled=!undoHistory.undo.length;byId('redoButton').disabled=!undoHistory.redo.length;
+}
+function commitHistory() {
+    clearTimeout(undoHistory.timer);
+    if(undoHistory.restoring)return;
+    if(historyBusy()){scheduleHistoryCommit();return;}
+    const state=historyState(),key=historyKey(state);
+    if(undoHistory.current&&key!==undoHistory.key){undoHistory.undo.push(undoHistory.current);if(undoHistory.undo.length>HISTORY_LIMIT)undoHistory.undo.shift();undoHistory.redo=[];}
+    undoHistory.current=state;undoHistory.key=key;updateHistoryButtons();
+}
+function resetHistory() {
+    clearTimeout(undoHistory.timer);undoHistory.undo=[];undoHistory.redo=[];undoHistory.current=null;undoHistory.key='';commitHistory();
+}
+function restoreHistoryState(state) {
+    undoHistory.restoring=true;
+    try{
+        const operator=state.compensation.enabled?compensationOperator(state.compensation):null;
+        const restored=state.samples.map(s=>{
+            const sample={...s,params:s.params.slice(),paramDetectors:s.paramDetectors?.slice(),paramStains:s.paramStains?.slice(),customAxisNames:s.customAxisNames?.slice(),data:s.data.slice(),rawData:s.data.slice()};
+            applyCompensationToSample(sample,state.compensation,operator);applyCustomAxes(sample,state.customAxes);return sample;
+        });
+        // Clone editable analysis metadata, retaining immutable raw columns by reference.
+        const {samples:ignored,...metadata}=state;
+        installWorkspace({...JSON.parse(JSON.stringify(metadata)),samples:restored});
+        undoHistory.current=historyState();undoHistory.key=historyKey(undoHistory.current);
+    }finally{undoHistory.restoring=false;updateHistoryButtons();}
+}
+function undo() {
+    if(historyBusy())return;commitHistory();if(!undoHistory.undo.length)return;
+    undoHistory.redo.push(undoHistory.current);restoreHistoryState(undoHistory.undo.pop());
+}
+function redo() {
+    if(historyBusy())return;commitHistory();if(!undoHistory.redo.length)return;
+    undoHistory.undo.push(undoHistory.current);restoreHistoryState(undoHistory.redo.pop());
+}
+function initializeHistory() {
+    byId('undoButton').addEventListener('click',undo);byId('redoButton').addEventListener('click',redo);
+    document.addEventListener('mousedown',()=>commitHistory(),true);
+    document.addEventListener('focusout',()=>queueMicrotask(()=>commitHistory()));
+    window.addEventListener('keydown',e=>{
+        const active=document.activeElement;
+        if(active?.matches('input,textarea,select')||active?.isContentEditable||document.querySelector('.modal-overlay.visible'))return;
+        if((e.metaKey||e.ctrlKey)&&!e.altKey){const key=e.key.toLowerCase();if(key==='z'||key==='y'){e.preventDefault();if(key==='y'||e.shiftKey)redo();else undo();}}
+    });resetHistory();
+}
+
+// ---------------------------- Resizable sidebars ----------------------------
+function sidebarWidth(width,appWidth,otherWidth,min=220) { return Math.max(min,Math.min(620,appWidth-otherWidth-300,width)); }
+function initializeSidebars() {
+    const app=document.querySelector('.app');
+    const configs={left:{property:'--left-w',handle:'leftResizer',sign:1,min:220},right:{property:'--right-w',handle:'rightResizer',sign:-1,min:240}};
+    const apply=(side,width,persist=false)=>{
+        const c=configs[side],column=document.querySelector('.'+side);
+        const other=side==='left'&&window.innerWidth<=1240?0:document.querySelector(side==='left'?'.right':'.left').getBoundingClientRect().width;
+        const next=width==null?null:sidebarWidth(width,app.getBoundingClientRect().width,other,c.min);
+        if(next==null)app.style.removeProperty(c.property);else app.style.setProperty(c.property,Math.round(next)+'px');
+        const handle=byId(c.handle);handle.setAttribute('aria-valuemin',String(c.min));handle.setAttribute('aria-valuemax','620');handle.setAttribute('aria-valuenow',String(Math.round(column.getBoundingClientRect().width)));
+        if(persist)try{if(next==null)localStorage.removeItem('cytofeather.'+side+'PanelWidth');else localStorage.setItem('cytofeather.'+side+'PanelWidth',String(next));}catch(error){/* Optional browser preference. */}
+        render();
+    };
+    for(const [side,c] of Object.entries(configs)){
+        const handle=byId(c.handle),column=document.querySelector('.'+side);let start=null;
+        try{const saved=Number(localStorage.getItem('cytofeather.'+side+'PanelWidth'));apply(side,saved>0?saved:null);}catch(error){apply(side,null);}
+        handle.addEventListener('pointerdown',e=>{if(e.button!==0)return;e.preventDefault();start={x:e.clientX,width:column.getBoundingClientRect().width};handle.setPointerCapture(e.pointerId);handle.classList.add('is-dragging');document.body.classList.add('is-col-resizing');});
+        handle.addEventListener('pointermove',e=>{if(start)apply(side,start.width+c.sign*(e.clientX-start.x));});
+        const end=()=>{if(!start)return;start=null;handle.classList.remove('is-dragging');document.body.classList.remove('is-col-resizing');apply(side,column.getBoundingClientRect().width,true);};
+        handle.addEventListener('pointerup',end);handle.addEventListener('pointercancel',end);handle.addEventListener('lostpointercapture',end);
+        handle.addEventListener('dblclick',()=>apply(side,null,true));
+        handle.addEventListener('keydown',e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();apply(side,column.getBoundingClientRect().width+c.sign*(e.key==='ArrowRight'?20:-20),true);}else if(e.key==='Home'){e.preventDefault();apply(side,null,true);}});
+    }
+    window.addEventListener('resize',()=>{if(window.innerWidth<=900)return;for(const [side,c] of Object.entries(configs)){if(side==='right'&&window.innerWidth<=1240)continue;const value=parseFloat(app.style.getPropertyValue(c.property));if(value>0)apply(side,value);}});
+}
+
 function isSegmentGate(g) { return g.type === 'segment' || g.type === 'range'; }
 function normalizeGate(g) {
     if (!g) return g;
@@ -3171,6 +3414,7 @@ function cloneGateDef(g) {
     return JSON.parse(JSON.stringify(g.def || {}));
 }
 function forkGateForSample(g, sampleId, force = false) {
+    if (g?.type === 'quad' && !force) return g;
     if (g && gateSampleGroupId(g) && !force) return g;
     if (!g || !sampleId || gateEffectiveSampleId(g)) return g;
     if (!g.excludeSampleIds) g.excludeSampleIds = [];
@@ -3195,9 +3439,14 @@ function forkGateForSample(g, sampleId, force = false) {
 function baseGateName(g) {
     return (g?.name || `Gate ${gates.length + 1}`).replace(/\s+\([^)]+\)$/,'');
 }
-function applyGateToSample(gateId, sampleId) {
+function applyGateToSample(gateId, sampleId, single = false) {
     const g = gates.find(g => g.id === gateId);
     if (!g || !sampleId) return null;
+    if (g.type === 'quad' && !single) {
+      const quadId = newQuadId();
+      const results = quadSiblings(g).map(q => {const result=applyGateToSample(q.id,sampleId,true);if(result && result!==q) result.quadId=quadId;return result;});
+      return results.find(q=>q?.def.q===g.def.q) || null;
+    }
     const effectiveSampleId = gateEffectiveSampleId(g);
     if (!effectiveSampleId && (!gateSampleGroupId(g) || gateAppliesToSample(g,sampleId))) return forkGateForSample(g, sampleId, true);
     if (effectiveSampleId === sampleId) return g;
@@ -3222,9 +3471,10 @@ function applyGateToSample(gateId, sampleId) {
     render();
     return clone;
 }
-function applyGateToAll(gateId) {
+function applyGateToAll(gateId, single = false) {
     const g = gates.find(g => g.id === gateId);
     if (!g) return null;
+    if (g.type === 'quad' && !single) {quadSiblings(g).forEach(q=>applyGateToAll(q.id,true));return g;}
     const parent = g.parentId ? gates.find(parent => parent.id === g.parentId) : null;
     if (parent && (gateEffectiveSampleId(parent) || gateSampleGroupId(parent))) g.parentId = null;
     const branch=gateAndDescendantIds(g.id);gates.filter(item=>branch.has(item.id)).forEach(item=>{item.groupId=null;item.sourceGateId=null;});
@@ -3299,6 +3549,7 @@ function translateGateLabelPositions(g, startLabelPos, startSampleLabelPos, delt
 }
 function gateVisibleForCurrentAxes(g, sampleId = null) {
     const isHist = ui.plotType.value.startsWith('hist');
+    if (g.type === 'quad' && isHist) return false;
     if (g.xParam !== axis.xParam) return false;
     if (!isHist && g.yParam !== axis.yParam) return false;
     const activeGroup=activeSampleGroupId();
@@ -3345,6 +3596,7 @@ function clamp01(v, fallback = 0.1) {
     return Math.max(0.04, Math.min(0.96, v));
 }
 function ensureGateLabelPos(g) {
+    if (g.type === 'quad' && !g.labelPos?.manual) return quadrantAnchor(g);
     if (g.labelPos && isFinite(g.labelPos.x) && isFinite(g.labelPos.y)) return g.labelPos;
     const a = calculateGateAnchor(g);
     const dy = (axis.yMax - axis.yMin) * 0.05;
@@ -3580,6 +3832,7 @@ function pointInGate(g, xval, yval){
         return xval >= min && xval <= max;
     }
     if(!isFinite(yval)) return false;
+    if (g.type === 'quad') return pointInQuadrant(g, xval, yval);
 
     if(g.type==='rect'){ const {x0,y0,x1,y1}=g.def; const minx=Math.min(x0,x1), maxx=Math.max(x0,x1), miny=Math.min(y0,y1), maxy=Math.max(y0,y1); return xval>=minx && xval<=maxx && yval>=miny && yval<=maxy; } 
     else if(g.type==='ellipse'){
@@ -3681,6 +3934,7 @@ function gateShapeIcon(type) {
   const shapes = {
     rect: '<rect x="3" y="4" width="14" height="12" rx="2"/>',
     ellipse: '<ellipse cx="10" cy="10" rx="7" ry="5.5"/>',
+    quad: '<path d="M10 2v16M2 10h16"/>',
     poly: '<path d="m4 4 10-1 3 9-7 5-7-6Z"/>',
     segment: '<path d="M4 5v10m12-10v10M4 10h12"/>',
     all: '<circle cx="6" cy="7" r="1.3"/><circle cx="13" cy="5" r="1.3"/><circle cx="10" cy="12" r="1.3"/><circle cx="15" cy="14" r="1.3"/><circle cx="4" cy="14" r="1.3"/>'
@@ -3813,7 +4067,8 @@ function gateAndDescendantIds(gateId) {
     return ids;
 }
 function removeGateAndChildren(gateId) {
-    const ids = gateAndDescendantIds(gateId);
+    const ids = new Set();
+    quadSiblings(gates.find(g=>g.id===gateId)).forEach(q=>gateAndDescendantIds(q.id).forEach(id=>ids.add(id)));
     gates = gates.filter(g => !ids.has(g.id));
     if (ids.has(currentPopulationId)) currentPopulationId = null;
     if (ids.has(editingGate.id)) editingGate.id = null;
@@ -3850,6 +4105,8 @@ ui.plot.addEventListener('mousedown', (e)=>{
   const sampleId = pointerCtx?.sample?.id || null;
 
   if (tool === 'select') {
+    const quadHit=pointerCtx && hitQuadrantDivider(px,py,activeArea,sampleId);
+    if(quadHit) {editingGate={id:quadHit.g.id,handle:{type:'quad',role:quadHit.role},area:activeArea};render();return;}
     const hitLabel = hitTestGatePercentLabel(px, py);
     if (hitLabel && !e.ctrlKey && !e.metaKey) {
         const hitGate = gates.find(g => g.id === hitLabel.gateId);
@@ -3888,6 +4145,7 @@ ui.plot.addEventListener('mousedown', (e)=>{
         if (gateVisibleForCurrentAxes(g, sampleId) && pointInGate(g, data.x, data.y)) {
             const targetGate = ui.plotType.value === 'scatter-grid' && sampleId ? forkGateForSample(g, sampleId) : g;
             editingGate.id = targetGate.id;
+            if(g.type==='quad'){render();return;}
             gateDragState = {
                 id: targetGate.id,
                 area: activeArea,
@@ -3915,6 +4173,7 @@ ui.plot.addEventListener('mousedown', (e)=>{
     return;
   }
 
+  if(tool==='quad'){createQuadGate(data,sampleId);return;}
   if (tool==='rect'){
     drawState = {type:'rect', start:data, cur:data, shift:e.shiftKey, area: activeArea, sampleId};
   } else if (tool==='segment'){
@@ -3994,7 +4253,10 @@ ui.plot.addEventListener('mousemove', (e)=>{
   if (editingGate.handle) {
       const g = gates.find(g => g.id === editingGate.id);
       const handle = editingGate.handle;
-      if (handle.type === 'poly') {
+      if (handle.type === 'quad') {
+          if (handle.role === 'center') setQuadCenter(g,data.x,data.y);
+          else tiltQuadrant(g,handle.role,data);
+      } else if (handle.type === 'poly') {
           g.def.pts[handle.index] = {x: data.x, y: data.y};
       } else if (handle.type === 'rect') {
           if (handle.corner[0] === '0') g.def.x0 = data.x; else g.def.x1 = data.x;
@@ -4022,7 +4284,14 @@ ui.plot.addEventListener('mousemove', (e)=>{
       return;
   }
 
-  if (!drawState) return;
+  if (!drawState) {
+    const hit=tool==='select' && pointerCtx && hitQuadrantDivider(px,py,activeArea,pointerCtx.sample?.id || null);
+    const changed=(hoverQuadrant?.g.id || '')!==(hit?.g.id || '') || hoverQuadrant?.role!==hit?.role;
+    hoverQuadrant=hit || null;
+    ui.plot.style.cursor=hit ? (hit.role==='center'?'move':'crosshair') : '';
+    ui.plot.title=hit ? (hit.role==='center'?'Drag to move the quadrant centre':'Drag to tilt this quadrant divider') : '';
+    if(changed)render();return;
+  }
   if (px<x||px>x+w||py<y||py>y+h){ if(drawState.type!=='poly') return; }
   
     const area = activeArea;
@@ -4037,6 +4306,8 @@ ui.plot.addEventListener('mousemove', (e)=>{
   render();
   drawGhost();
 });
+
+ui.plot.addEventListener('mouseleave',()=>{if(hoverQuadrant){hoverQuadrant=null;ui.plot.style.cursor='';ui.plot.title='';if(!editingGate.handle)render();}ui.cursorCoords.style.display='none';});
 
 ui.plot.addEventListener('dblclick', (e)=>{
   if(drawState && drawState.type==='poly'){ finalizePoly(); return; }
@@ -4097,6 +4368,7 @@ window.addEventListener('keydown', (e)=>{
   if (e.key === 'z' || e.key === 'Z') setTool('zoom');
   if (e.key === 'r' || e.key === 'R') setTool('rect');
   if (e.key === 'g' || e.key === 'G') setTool('segment');
+  if (e.key === 'q' || e.key === 'Q') setTool('quad');
   if (e.key === 'p' || e.key === 'P') setTool('poly');
   if (e.key === 'e' || e.key === 'E' || e.key === 'c' || e.key === 'C') setTool('ellipse');
   
@@ -4104,7 +4376,7 @@ window.addEventListener('keydown', (e)=>{
   else if (e.key==='Escape'){ closeGateApplyMenu(); closePlotStyleMenu(); editingGate.id = null; resetToSelect(); }
 });
 
-ui.plot.addEventListener('mouseup', (e)=>{
+window.addEventListener('mouseup', (e)=>{
   if (labelDragGateId) { labelDragGateId = null; labelDragCellArea = null; labelDragSampleId = null; return; }
   if (gateDragState) { gateDragState = null; markGatePercentDirty(); render(); return; }
   if (editingGate.handle) { editingGate.handle = null; editingGate.area = null; markGatePercentDirty(); render(); return; }
@@ -4870,7 +5142,7 @@ function drawGridGateOverlaysPDF(pdf, cellArea, sample, isLightMode, options = {
         if (showGates) {
             pdf.setDrawColor(strokeColor.r, strokeColor.g, strokeColor.b);
             pdf.setLineWidth(0.9);
-            if (g.type === 'rect') {
+            if (g.type === 'quad') { drawQuadrantPDF(pdf,g,cellArea); } else if (g.type === 'rect') {
                 const {x0,y0,x1,y1} = g.def;
                 const rx = x + xs.fwd(Math.min(x0,x1));
                 const ry = y + h - ys.fwd(Math.max(y0,y1));
@@ -5158,7 +5430,7 @@ function drawGatesPDF(pdf, area, isLightMode, options = {}) {
         if (!gateVisibleForCurrentAxes(g)) return; 
         const strokeColor = (gateSampleGroupId(g) || gateEffectiveSampleId(g)) ? hexToRgb(gateColor(g)) : (isLightMode ? gateGray : pdfThemeColor('gate', false));
         pdf.setDrawColor(strokeColor.r, strokeColor.g, strokeColor.b);
-        if (g.type === 'rect') {
+        if (g.type === 'quad') { drawQuadrantPDF(pdf,g,area); } else if (g.type === 'rect') {
             const {x0,y0,x1,y1} = g.def; const rx = x + xs.fwd(Math.min(x0,x1)); const ry = y + h - ys.fwd(Math.max(y0,y1)); const rw = Math.abs(xs.fwd(x1) - xs.fwd(x0)); const rh = Math.abs(ys.fwd(y1) - ys.fwd(y0));
             pdf.rect(rx, ry, rw, rh, 'S');
         } else if (g.type === 'poly') {
@@ -5356,12 +5628,12 @@ ui.confirmStatsExport.addEventListener('click', () => {
     closeModal(ui.statsExportModal);
 });
 
-function serializeWorkspace() {
+function serializeWorkspace(options = {}) {
   return {
     version: 2, customAxes,
     samples: samples.map(s => {
       const { rawData, compensationApplied, ...storedSample } = s;
-      return {...storedSample, data: Array.from(rawData || s.data, d => Array.from(d))};
+      return {...storedSample, data: options.binary ? Array.from(rawData || s.data) : Array.from(rawData || s.data, d => Array.from(d))};
     }),
     collapsedGateIds: Array.from(collapsedGateIds),
     sampleGroups, gates, axis, visibleSampleIds: Array.from(visibleSampleIds), currentPopulationId,
@@ -5370,8 +5642,72 @@ function serializeWorkspace() {
   };
 }
 
+// Binary workspaces: a JSON header followed by raw little-endian columns.
+const WORKSPACE_MAGIC = 'CYTOFWS1';
+const platformIsLittleEndian = new Uint8Array(new Uint16Array([1]).buffer)[0] === 1;
+function encodeWorkspaceBinary(workspace) {
+  if (!platformIsLittleEndian) throw new Error('Binary workspaces need a little-endian device.');
+  const parts = [];
+  let offset = 0;
+  const meta = {...workspace, binaryFormat: 1, samples: workspace.samples.map(sample => {
+    const columns = sample.data.map(column => {
+      const typed = column instanceof Float32Array || column instanceof Float64Array ? column : Float64Array.from(column, v => v == null ? NaN : v);
+      const entry = {type: typed instanceof Float32Array ? 'f32' : 'f64', offset, length: typed.length};
+      parts.push(typed);
+      offset += typed.byteLength;
+      const pad = (8 - (offset % 8)) % 8;
+      if (pad) { parts.push(new Uint8Array(pad)); offset += pad; }
+      return entry;
+    });
+    const {data, ...rest} = sample;
+    return {...rest, columns};
+  })};
+  const json = new TextEncoder().encode(JSON.stringify(meta));
+  const header = new Uint8Array(16);
+  header.set(new TextEncoder().encode(WORKSPACE_MAGIC));
+  new DataView(header.buffer).setUint32(8, json.length, true);
+  const jsonPad = (8 - ((16 + json.length) % 8)) % 8;
+  return new Blob([header, json, new Uint8Array(jsonPad), ...parts], {type: 'application/octet-stream'});
+}
+async function decodeWorkspaceBinary(blob) {
+  if (!platformIsLittleEndian) throw new Error('Binary workspaces need a little-endian device.');
+  if (blob.size < 16) throw new Error('The workspace file is truncated.');
+  const header = new DataView(await blob.slice(0, 16).arrayBuffer());
+  const magic = new TextDecoder().decode(new Uint8Array(header.buffer, 0, 8));
+  if (magic !== WORKSPACE_MAGIC) throw new Error('This is not a Cytofeather workspace.');
+  const jsonLength = header.getUint32(8, true);
+  if (16 + jsonLength > blob.size) throw new Error('The workspace file is truncated.');
+  const meta = JSON.parse(await blob.slice(16, 16 + jsonLength).text());
+  const dataStart = 16 + jsonLength + ((8 - ((16 + jsonLength) % 8)) % 8);
+  if (!meta || meta.binaryFormat !== 1 || !Array.isArray(meta.samples)) throw new Error('This is not a Cytofeather workspace.');
+  for (const sample of meta.samples) {
+    if (!sample || !Number.isSafeInteger(sample.n) || sample.n < 1 || !Array.isArray(sample.columns) || !Array.isArray(sample.params) || sample.columns.length !== sample.params.length) throw new Error('Invalid sample event data.');
+    sample.data = [];
+    for (const column of sample.columns) {
+      const Typed = column?.type === 'f32' ? Float32Array : column?.type === 'f64' ? Float64Array : null;
+      if (!Typed || !Number.isSafeInteger(column.offset) || !Number.isSafeInteger(column.length) || column.offset < 0 || column.length !== sample.n || column.offset % Typed.BYTES_PER_ELEMENT) throw new Error('Invalid sample event data.');
+      const start = dataStart + column.offset, end = start + column.length * Typed.BYTES_PER_ELEMENT;
+      if (end > blob.size) throw new Error('The workspace file is truncated.');
+      sample.data.push(new Typed(await blob.slice(start, end).arrayBuffer()));
+    }
+    delete sample.columns;
+  }
+  delete meta.binaryFormat;
+  return meta;
+}
+async function readWorkspaceFile(file) {
+  const head = new Uint8Array(await file.slice(0, 8).arrayBuffer());
+  if (new TextDecoder().decode(head) === WORKSPACE_MAGIC) return decodeWorkspaceBinary(file);
+  try { return JSON.parse(await file.text()); }
+  catch (err) { throw new Error('This is not a Cytofeather workspace (.cytofeather or .json)'); }
+}
+
+
 // Validate and prepare everything before replacing the current session.
 function prepareWorkspace(workspace) {
+  // A V2 multi-plot file opens as its active plot in this single-plot app.
+  const savedPanel=Array.isArray(workspace?.panels) ? workspace.panels.find(panel=>panel?.id===workspace.activePanelId) : null;
+  if(savedPanel) workspace={...workspace,axis:savedPanel.axis,plotType:savedPanel.plotType,gridCols:savedPanel.gridCols,plotStyle:savedPanel.plotStyle,currentPopulationId:savedPanel.populationId || null};
   const fail = message => { throw new Error(message); };
   const finite = Number.isFinite;
   const validNames = names => Array.isArray(names) && names.every(n => typeof n === 'string' && n.trim()) && new Set(names).size === names.length;
@@ -5379,8 +5715,8 @@ function prepareWorkspace(workspace) {
   if (workspace.version != null && ![1, 2].includes(workspace.version)) fail('This workspace version is not supported.');
   const nextSamples = workspace.samples.map(s => {
     if (!s || typeof s.id !== 'string' || !s.id || typeof s.name !== 'string' || !validNames(s.params) || !s.params.length || !Number.isSafeInteger(s.n) || s.n < 1 || !Array.isArray(s.data) || s.data.length !== s.params.length) fail('Invalid sample metadata.');
-    if (s.data.some(d => !Array.isArray(d) || d.length !== s.n || d.some(v => v !== null && !finite(v)))) fail('Invalid sample event data.');
-    const data = s.data.map(d => Float64Array.from(d, v => v === null ? NaN : v));
+    if (s.data.some(d => !(Array.isArray(d) || d instanceof Float32Array || d instanceof Float64Array) || d.length !== s.n || d.some(v => v !== null && !finite(v) && !((d instanceof Float32Array || d instanceof Float64Array) && Number.isNaN(v))))) fail('Invalid sample event data.');
+    const data = s.data.map(d => d instanceof Float32Array || d instanceof Float64Array ? d : Float64Array.from(d, v => v === null ? NaN : v));
     if (s.paramDetectors && (!Array.isArray(s.paramDetectors) || s.paramDetectors.length !== s.params.length || s.paramDetectors.some(n => typeof n !== 'string'))) fail('Invalid detector metadata.');
     return {...s, color: /^#[0-9a-f]{6}$/i.test(s.color) ? s.color : palette[0], data, rawData: data};
   });
@@ -5403,20 +5739,27 @@ function prepareWorkspace(workspace) {
     if (nextSamples.length && (!finite(min) || !finite(max) || min >= max || (nextAxis[dim + 'Scale'] === 'log' && min <= 0))) fail('Invalid axis range.');
   }
   const nextGates = workspace.gates.map(g => {
-    if (!g || typeof g.id !== 'string' || !g.id || typeof g.name !== 'string' || !g.def || !['rect', 'segment', 'range', 'ellipse', 'circle', 'poly'].includes(g.type)) fail('Invalid gate definition.');
+    if (!g || typeof g.id !== 'string' || !g.id || typeof g.name !== 'string' || !g.def || !['rect', 'segment', 'range', 'ellipse', 'circle', 'poly', 'quad'].includes(g.type)) fail('Invalid gate definition.');
     const gate = {...g, def: {...g.def}, parentId: g.parentId || null, xScale: g.xScale || nextAxis.xScale, yScale: g.yScale || nextAxis.yScale};
     if (!['linear', 'log'].includes(gate.xScale) || !['linear', 'log'].includes(gate.yScale)) fail('Invalid gate scale.');
     if (typeof gate.xParam !== 'string' || (!isSegmentGate(gate) && typeof gate.yParam !== 'string')) fail('Invalid gate parameters.');
-    const keys = {rect: ['x0','y0','x1','y1'], segment: ['x0','x1'], range: ['x0','x1'], ellipse: ['cx','cy','rx','ry'], circle: ['cx','cy','r']}[g.type];
+    const keys = {rect: ['x0','y0','x1','y1'], segment: ['x0','x1'], range: ['x0','x1'], ellipse: ['cx','cy','rx','ry'], circle: ['cx','cy','r'], quad: ['x','y']}[g.type];
     if (keys && keys.some(k => !finite(g.def[k]))) fail('Invalid gate coordinates.');
     if (g.type === 'poly' && (!Array.isArray(g.def.pts) || g.def.pts.length < 3 || g.def.pts.some(p => !p || !finite(p.x) || !finite(p.y)))) fail('Invalid polygon.');
     if (g.type === 'ellipse' && (!(g.def.rx > 0) || !(g.def.ry > 0) || (g.def.angle != null && !finite(g.def.angle)))) fail('Invalid ellipse.');
     if (g.type === 'circle' && !(g.def.r > 0)) fail('Invalid circle.');
+    if (g.type === 'quad') {
+      if (!['UL','UR','LR','LL'].includes(g.def.q) || typeof g.quadId !== 'string' || !g.quadId) fail('Invalid quadrant gate.');
+      if (['xAngle','yAngle'].some(k => g.def[k] != null && (!finite(g.def[k]) || Math.abs(g.def[k]) > 1.4)) || Math.abs((g.def.xAngle || 0)-(g.def.yAngle || 0)) >= Math.PI/2-.1) fail('Invalid quadrant angles.');
+      if (['xSpan','ySpan'].some(k => g.def[k] != null && (!finite(g.def[k]) || g.def[k] <= 0))) fail('Invalid quadrant scale.');
+      if ((gate.xScale === 'log' && g.def.x <= 0) || (gate.yScale === 'log' && g.def.y <= 0)) fail('Invalid quadrant centre.');
+    }
     if (groupIds.has(g.id) || (g.groupId && !groupIds.has(g.groupId))) fail('Invalid gate group reference.');
     if (g.sampleId && !sampleIds.has(g.sampleId)) fail('A gate references a missing sample.');
     if (g.excludeSampleIds && (!Array.isArray(g.excludeSampleIds) || g.excludeSampleIds.some(id => !sampleIds.has(id)))) fail('Invalid gate sample exclusions.');
     return normalizeGate(gate);
   });
+  validateQuadrantSets(nextGates);
   const gateMap = new Map(nextGates.map(g => [g.id, g]));
   if (gateMap.size !== nextGates.length) fail('Duplicate gate IDs.');
   for (const gate of nextGates) {
@@ -5454,6 +5797,10 @@ function prepareWorkspace(workspace) {
 
 function restoreWorkspace(workspace) {
   const next = prepareWorkspace(workspace);
+  installWorkspace(next);
+  resetHistory();
+}
+function installWorkspace(next) {
   customAxes=next.customAxes;
   sampleGroups = next.sampleGroups; samples = next.samples; gates = next.gates; axis = next.axis;
   collapsedGateIds.clear();
@@ -5471,6 +5818,8 @@ function restoreWorkspace(workspace) {
     ui.themeToggle.checked = next.theme === 'light';
     document.querySelector('meta[name="theme-color"]').content = next.theme === 'light' ? '#f1f3f6' : '#0f1115';
   }
+  drawState = null; gateDragState = null; labelDragGateId = null; hoverQuadrant = null;
+  ui.plot.title='';ui.plot.style.cursor='';ui.cursorCoords.style.display='none';
   editingGate = {id: null, handle: null};
   // Set controls before anything can render and read them back into axis.
   ui.xScale.value = axis.xScale; ui.yScale.value = axis.yScale;
@@ -5485,13 +5834,14 @@ function restoreWorkspace(workspace) {
 }
 
 ui.saveWorkspace.addEventListener('click', safeHandler('Save workspace', () => {
-  downloadFile(JSON.stringify(serializeWorkspace()), 'application/json', 'workspace.json');
+  downloadFile(encodeWorkspaceBinary(serializeWorkspace({binary:true})), 'application/octet-stream', 'workspace.cytofeather');
 }));
+byId('saveWorkspaceJSON').addEventListener('click', safeHandler('Save workspace', () => downloadFile(JSON.stringify(serializeWorkspace()), 'application/json', 'workspace.json')));
 ui.loadWorkspace.addEventListener('click', () => ui.loadWorkspaceInput.click());
 ui.loadWorkspaceInput.addEventListener('change', async (e) => {
   const file = e.target.files[0]; if (!file) return;
   e.target.value = '';
-  try { restoreWorkspace(JSON.parse(await file.text())); }
+  try { restoreWorkspace(await readWorkspaceFile(file)); }
   catch (err) { alert(`Failed to load workspace: ${err.message.replace(/[.]+$/, '')}. Your current session has been kept.`); console.error(err); }
 });
 
@@ -5535,6 +5885,7 @@ function buildGatingStrategyRows(mode, plotSamples = visibleSamples()) {
 
 function strategyGatePoints(g) {
     const d = g.def;
+    if (g.type === 'quad') return [{x:d.x,y:d.y}];
     if (g.type === 'rect') return [{x:d.x0,y:d.y0},{x:d.x1,y:d.y0},{x:d.x1,y:d.y1},{x:d.x0,y:d.y1}];
     if (isSegmentGate(g)) return [{x:d.x0,y:0},{x:d.x1,y:0}];
     if (g.type === 'poly') return d.pts;
@@ -5683,6 +6034,11 @@ function drawStrategyHistogramPDF(pdf, area, plotAxis, plotSamples, parentFilter
 }
 
 function drawStrategyGatePDF(pdf, area, plotAxis, gate, number) {
+    if (gate.type === 'quad') {
+      pdf.setDrawColor(36,44,56);pdf.setLineWidth(1);drawQuadrantPDF(pdf,gate,area,plotAxis);
+      const p=quadrantAnchor(gate,plotAxis),xs=makeScaler(plotAxis.xMin,plotAxis.xMax,plotAxis.xScale,area.w),ys=makeScaler(plotAxis.yMin,plotAxis.yMax,plotAxis.yScale,area.h);
+      pdf.setFontSize(7);pdf.setTextColor(36,44,56);pdf.text(String(number),area.x+xs.fwd(p.x),area.y+area.h-ys.fwd(p.y),{align:'center'});return;
+    }
     const xs=makeScaler(plotAxis.xMin,plotAxis.xMax,plotAxis.xScale,area.w);
     const ys=makeScaler(plotAxis.yMin,plotAxis.yMax,plotAxis.yScale,area.h);
     const points=strategyGatePoints(gate).map(p=>({x:area.x+xs.fwd(p.x),y:area.y+area.h-ys.fwd(p.y)}));
@@ -6064,6 +6420,8 @@ if ('ResizeObserver' in window) {
     window.addEventListener('resize', () => { if (syncCanvasResolution()) render(); });
 }
 render();
+initializeSidebars();
+initializeHistory();
 </script>
 </body>
 </html>
