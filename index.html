@@ -385,6 +385,7 @@
     .statsHeading{display:flex;align-items:center;justify-content:space-between;gap:8px}
     .statsHeadingCopy{min-width:0}
     .statsPopulation{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;font-weight:400;letter-spacing:normal;text-transform:none;color:var(--muted);margin-top:4px}
+    .statsPopulation[hidden]{display:none}
     .statsHeadingActions{display:flex;align-items:center;gap:2px;flex-shrink:0}
     .statsSettingsButton{width:25px;height:25px;flex:0 0 25px;padding:3px;border:0;background:transparent;color:var(--muted);border-radius:6px}
     .statsSettingsButton svg{width:18px;height:18px;stroke:currentColor;stroke-width:1.6;fill:none;stroke-linecap:round;stroke-linejoin:round}
@@ -792,7 +793,7 @@
 
     <section class="col right">
       <div id="rightResizer" class="sideResizer" role="separator" aria-label="Resize Stats and Gates sidebar" aria-orientation="vertical" tabindex="0" title="Drag to resize; double-click to reset"></div>
-      <h3 class="statsHeading"><span class="statsHeadingCopy">Stats<span id="statsPopulationLabel" class="statsPopulation">All events</span></span><span class="statsHeadingActions"><button id="downloadPanelStats" class="statsSettingsButton" type="button" title="Download displayed statistics (CSV)" aria-label="Download displayed statistics as CSV" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 16v4h14v-4"/></svg></button><button id="statsSettingsButton" class="statsSettingsButton" type="button" title="Customize statistics" aria-label="Customize statistics" aria-haspopup="dialog" aria-controls="statsSettingsModal"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.2 3-.6 2.2-1.7 1L4.7 6 3.3 8.4 5 10v2l-1.7 1.6L4.7 16l2.2-.2 1.7 1 .6 2.2H12l.6-2.2 1.7-1 2.2.2 1.4-2.4L16.2 12v-2l1.7-1.6L16.5 6l-2.2.2-1.7-1L12 3Z"/><circle cx="10.6" cy="11" r="3"/></svg></button></span></h3>
+      <h3 class="statsHeading"><span class="statsHeadingCopy">Stats<span id="statsPopulationLabel" class="statsPopulation">All events</span><span id="statsUpdateStatus" class="statsPopulation" role="status" hidden>Updates when released</span></span><span class="statsHeadingActions"><button id="downloadPanelStats" class="statsSettingsButton" type="button" title="Download displayed statistics (CSV)" aria-label="Download displayed statistics as CSV" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 16v4h14v-4"/></svg></button><button id="statsSettingsButton" class="statsSettingsButton" type="button" title="Customize statistics" aria-label="Customize statistics" aria-haspopup="dialog" aria-controls="statsSettingsModal"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.2 3-.6 2.2-1.7 1L4.7 6 3.3 8.4 5 10v2l-1.7 1.6L4.7 16l2.2-.2 1.7 1 .6 2.2H12l.6-2.2 1.7-1 2.2.2 1.4-2.4L16.2 12v-2l1.7-1.6L16.5 6l-2.2.2-1.7-1L12 3Z"/><circle cx="10.6" cy="11" r="3"/></svg></button></span></h3>
       <div class="stats" id="statsBox"></div>
       <div class="sep"></div>
       <h3>Gates</h3>
@@ -918,6 +919,13 @@ const ui = {
 const ctx = ui.plot.getContext('2d');
 const DEFAULT_PLOT_SIZE = { w: 900, h: 600 };
 let plotDisplaySize = { ...DEFAULT_PLOT_SIZE, dpr: 1 };
+let renderQueued = false;
+let renderPhase = 'all';
+let renderingExport = false;
+const plotLayerCache = {canvas:null,key:null};
+const plotColumnIds = new WeakMap();
+let nextPlotColumnId = 1;
+let liveGatePreview = null;
 
 let sampleGroups = [];
 let samples = []; 
@@ -2602,62 +2610,127 @@ function drawPseudocolorScatterCell(targetCtx, cellArea, sample, popFilter) {
     drawDensityDots(targetCtx, cellArea, density, plotStyle.scatterGridPalette, scatterDotSize() / 2, scatterOpacity());
 }
 
-function render(targetCtx = ctx, isExport = false, exportOptions = {}){
-    if (!isExport) syncFileGroupMarkers();
-    if (!isExport) ui.scatterPseudocolorToggle.checked = !!plotStyle[ui.plotType.value === 'scatter-grid' ? 'scatterGridPseudocolor' : 'scatterPseudocolor'];
-  if (!isExport) { 
-    setAxisFromUI();
-    syncCanvasResolution();
-    clear();
-  }
-  
-  // Logical Width/Height support for High-DPI
-  const w = isExport ? (exportOptions.logicalWidth || targetCtx.canvas.width) : plotLogicalWidth();
-  const h = isExport ? (exportOptions.logicalHeight || targetCtx.canvas.height) : plotLogicalHeight();
-  
-  // Note: draw functions need to know the logical area to scale correctly if we are doing High DPI via ctx.scale
-  const plotType = ui.plotType.value;
-  if (plotType === 'scatter') drawScatterPlot(targetCtx, isExport, exportOptions, w, h);
-  else if (plotType === 'scatter-grid') drawGridScatterPlot(targetCtx, isExport, exportOptions, w, h);
-  else if (plotType === 'hist') drawHistPlot(targetCtx, isExport, false, exportOptions, w, h);
-  else if (plotType === 'hist-offset') drawHistPlot(targetCtx, isExport, true, exportOptions, w, h);
-
-  if (isExport && exportOptions.includeAxisTitles !== false) {
-    drawCanvasAxisTitles(targetCtx, w, h);
-  }
-
-    if (!isExport) { updateStats(); scheduleHistoryCommit(); }
+// Event clouds/curves are cached separately from gates, labels and drawing previews.
+function requestRender() {
+    if (renderQueued) return;
+    renderQueued=true;
+    requestAnimationFrame(renderFrame);
+}
+function render(targetCtx = ctx, isExport = false, exportOptions = {}) {
+    if (isExport) { renderPlotContent(targetCtx,true,exportOptions,'all'); return; }
+    requestRender();
+}
+function drawDataPhase() { return renderPhase !== 'overlay'; }
+function drawOverlayPhase() { return renderPhase !== 'data'; }
+function renderPlotContent(targetCtx, isExport = false, exportOptions = {}, phase = 'all') {
+    const previousPhase=renderPhase,previousExport=renderingExport;
+    renderPhase=phase;renderingExport=isExport;
+    try {
+        const w=isExport?(exportOptions.logicalWidth || targetCtx.canvas.width):plotLogicalWidth();
+        const h=isExport?(exportOptions.logicalHeight || targetCtx.canvas.height):plotLogicalHeight();
+        const plotType=ui.plotType.value;
+        if (plotType==='scatter') drawScatterPlot(targetCtx,isExport,exportOptions,w,h);
+        else if (plotType==='scatter-grid') drawGridScatterPlot(targetCtx,isExport,exportOptions,w,h);
+        else if (plotType==='hist') drawHistPlot(targetCtx,isExport,false,exportOptions,w,h);
+        else if (plotType==='hist-offset') drawHistPlot(targetCtx,isExport,true,exportOptions,w,h);
+        if (isExport && exportOptions.includeAxisTitles !== false) drawCanvasAxisTitles(targetCtx,w,h);
+    } finally { renderPhase=previousPhase;renderingExport=previousExport; }
+}
+function plotColumnIdentity(column) {
+    if (!plotColumnIds.has(column)) plotColumnIds.set(column,nextPlotColumnId++);
+    return plotColumnIds.get(column);
+}
+function plotPopulationSignature(populationId) {
+    const path=[],seen=new Set();
+    let g=gates.find(g=>g.id===populationId);
+    while (g && !seen.has(g.id)) {
+        seen.add(g.id);
+        path.push([g.id,g.parentId,g.type,g.xParam,g.yParam,g.xScale,g.yScale,g.def,g.viewAxis,g.groupId,g.sampleId,g.excludeSampleIds]);
+        g=gates.find(parent=>parent.id===g.parentId);
+    }
+    return [populationId,path];
+}
+function plotDataKey() {
+    return JSON.stringify([
+        ui.plotType.value,ui.gridCols.value,axis,plotStyle,plotDisplaySize,document.body.dataset.theme,
+        visibleSamples().map(s=>[s.id,s.name,s.color,s.n,s.params,s.data.map(plotColumnIdentity)]),
+        sampleGroups.map(g=>[g.id,g.sampleIds]),plotPopulationSignature(currentPopulationId)
+    ]);
+}
+function gateEditInProgress() { return !!(gateDragState || editingGate.handle); }
+function plotInteractionInProgress() { return !!(gateEditInProgress() || labelDragGateId || drawState); }
+function setStatsPending(pending) {
+    const status=byId('statsUpdateStatus');
+    status.hidden=!pending;
+    if (pending) byId('downloadPanelStats').disabled=true;
+}
+function drawPlotUpdateHint() {
+    const area=plotArea();
+    ctx.save();ctx.font='500 11px sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
+    const text='Updates when released',width=ctx.measureText(text).width+12;
+    ctx.fillStyle=getComputedStyle(document.body).getPropertyValue('--canvas-bg');
+    ctx.globalAlpha=.9;ctx.fillRect(area.x+4,area.y+4,width,22);
+    ctx.globalAlpha=1;ctx.fillStyle=getComputedStyle(document.body).getPropertyValue('--muted');
+    ctx.fillText(text,area.x+10,area.y+9);ctx.restore();
+}
+function renderFrame() {
+    renderQueued=false;
+    setAxisFromUI();syncCanvasResolution();
+    ui.scatterPseudocolorToggle.checked=!!plotStyle[ui.plotType.value==='scatter-grid'?'scatterGridPseudocolor':'scatterPseudocolor'];
+    const key=plotDataKey(),pending=gateEditInProgress() && plotLayerCache.key!==null && plotLayerCache.key!==key;
+    if (!plotLayerCache.canvas) plotLayerCache.canvas=document.createElement('canvas');
+    const layer=plotLayerCache.canvas;
+    if (plotLayerCache.key!==key && !pending) {
+        const dpr=plotDisplaySize.dpr;
+        layer.width=ui.plot.width;layer.height=ui.plot.height;
+        const layerCtx=layer.getContext('2d');layerCtx.setTransform(dpr,0,0,dpr,0,0);
+        renderPlotContent(layerCtx,false,{},'data');plotLayerCache.key=key;
+    }
+    ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,ui.plot.width,ui.plot.height);
+    if (layer.width && layer.height) ctx.drawImage(layer,0,0,ui.plot.width,ui.plot.height);
+    ctx.setTransform(plotDisplaySize.dpr,0,0,plotDisplaySize.dpr,0,0);
+    renderPlotContent(ctx,false,{},'overlay');
+    if (drawState) drawGhost();
+    if (pending) drawPlotUpdateHint();
+    if (gateEditInProgress()) setStatsPending(true);
+    else if (!plotInteractionInProgress()) {
+        liveGatePreview=null;syncFileGroupMarkers();setStatsPending(false);updateStats();scheduleHistoryCommit();
+    }
 }
 
 function drawScatterPlot(targetCtx, isExport, exportOptions, width, height){
     const area = plotArea(width, height);
-    drawAxes(targetCtx, area);
-    const {x,y,w,h} = area;
-    const xs=makeScaler(axis.xMin,axis.xMax,axis.xScale,w);
-    const ys=makeScaler(axis.yMin,axis.yMax,axis.yScale,h);
-    const popFilter = makePopulationFilter(currentPopulationId);
+    if (drawDataPhase()) {
+        drawAxes(targetCtx, area);
+        const {x,y,w,h} = area;
+        const xs=makeScaler(axis.xMin,axis.xMax,axis.xScale,w);
+        const ys=makeScaler(axis.yMin,axis.yMax,axis.yScale,h);
+        const popFilter = makePopulationFilter(currentPopulationId);
 
-    if (plotStyle.scatterPseudocolor) {
-        drawPseudocolorScatterCell(targetCtx, area, visibleSamples(), popFilter);
-    } else visibleSamples().forEach(s=>{
-      const ix = s.params.indexOf(axis.xParam), iy = s.params.indexOf(axis.yParam);
-      if (ix<0 || iy<0) return;
-      const ax=s.data[ix], ay=s.data[iy];
-      const dotSize = scatterDotSize();
-      const dotRadius = dotSize / 2;
-      targetCtx.fillStyle = hexToRGBA(s.color, scatterOpacity());
-      const N = ax.length; const stride = N>150000? Math.ceil(N/150000) : 1;
-      
-      targetCtx.beginPath();
-      if (isExport) {
-        for (let k=0;k<N;k+=stride){ const vx=ax[k], vy=ay[k]; if(axis.xScale==='log' && vx<=0) continue; if(axis.yScale==='log' && vy<=0) continue; if(!popFilter(s,k)) continue; const px = x + xs.fwd(vx); const py = y + h - ys.fwd(vy); if(px<x||px>x+w||py<y||py>y+h) continue; targetCtx.moveTo(px + dotRadius, py); targetCtx.arc(px, py, dotRadius, 0, TAU); }
-      } else {
-        for (let k=0;k<N;k+=stride){ const vx=ax[k], vy=ay[k]; if(axis.xScale==='log' && vx<=0) continue; if(axis.yScale==='log' && vy<=0) continue; if(!popFilter(s,k)) continue; const px = x + xs.fwd(vx); const py = y + h - ys.fwd(vy); if(px<x||px>x+w||py<y||py>y+h) continue; targetCtx.rect(px-dotRadius,py-dotRadius,dotSize,dotSize); }
-      }
-      targetCtx.fill();
-    });
-    if (!isExport || (isExport && exportOptions.showGates)) drawGates(targetCtx, width, height, isExport, exportOptions);
-    drawPlotBorder(targetCtx, area);
+        if (plotStyle.scatterPseudocolor) {
+            drawPseudocolorScatterCell(targetCtx, area, visibleSamples(), popFilter);
+        } else visibleSamples().forEach(s=>{
+          const ix = s.params.indexOf(axis.xParam), iy = s.params.indexOf(axis.yParam);
+          if (ix<0 || iy<0) return;
+          const ax=s.data[ix], ay=s.data[iy];
+          const dotSize = scatterDotSize();
+          const dotRadius = dotSize / 2;
+          targetCtx.fillStyle = hexToRGBA(s.color, scatterOpacity());
+          const N = ax.length; const stride = N>150000? Math.ceil(N/150000) : 1;
+
+          targetCtx.beginPath();
+          if (isExport) {
+            for (let k=0;k<N;k+=stride){ const vx=ax[k], vy=ay[k]; if(axis.xScale==='log' && vx<=0) continue; if(axis.yScale==='log' && vy<=0) continue; if(!popFilter(s,k)) continue; const px = x + xs.fwd(vx); const py = y + h - ys.fwd(vy); if(px<x||px>x+w||py<y||py>y+h) continue; targetCtx.moveTo(px + dotRadius, py); targetCtx.arc(px, py, dotRadius, 0, TAU); }
+          } else {
+            for (let k=0;k<N;k+=stride){ const vx=ax[k], vy=ay[k]; if(axis.xScale==='log' && vx<=0) continue; if(axis.yScale==='log' && vy<=0) continue; if(!popFilter(s,k)) continue; const px = x + xs.fwd(vx); const py = y + h - ys.fwd(vy); if(px<x||px>x+w||py<y||py>y+h) continue; targetCtx.rect(px-dotRadius,py-dotRadius,dotSize,dotSize); }
+          }
+          targetCtx.fill();
+        });
+    }
+    if (drawOverlayPhase()) {
+        if (!isExport || (isExport && exportOptions.showGates)) drawGates(targetCtx, width, height, isExport, exportOptions);
+        drawPlotBorder(targetCtx, area);
+    }
 }
 function drawGatesInGridCell(targetCtx, cellArea, sample, isExport = false, exportOptions = {}) {
     const {x, y, w, h} = cellArea;
@@ -2692,7 +2765,7 @@ function drawGatesInGridCell(targetCtx, cellArea, sample, isExport = false, expo
             const px = x + xs.fwd(pos.x);
             const py = y + h - ys.fwd(pos.y);
             if (!isFinite(px) || !isFinite(py)) return;
-            const text = gatePercentTextForSample(g, sample.id);
+            const text = canvasGatePercentText(g, sample.id);
             drawCanvasGateLabel(targetCtx, text, px, py, '400 10px "Avenir Next", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif');
         }
     });
@@ -2704,7 +2777,7 @@ function drawGridScatterPlot(targetCtx, isExport, exportOptions, width, height) 
     const popFilter = makePopulationFilter(currentPopulationId);
     const visSamples = visibleSamples();
     const nSamples = visSamples.length;
-    if (nSamples === 0) { drawAxes(targetCtx, area); return; }
+    if (nSamples === 0) { if (drawDataPhase()) drawAxes(targetCtx, area); return; }
 
     const cols = gridColumnCount(nSamples);
     const rows = Math.ceil(nSamples / cols);
@@ -2717,41 +2790,46 @@ function drawGridScatterPlot(targetCtx, isExport, exportOptions, width, height) 
         const cellX = x + col * cellW;
         const cellY = y + row * cellH;
         const cellArea = {x: cellX, y: cellY, w: cellW, h: cellH};
-        drawAxes(targetCtx, cellArea, row === rows - 1, col === 0);
+        if (drawDataPhase()) {
+            drawAxes(targetCtx, cellArea, row === rows - 1, col === 0);
 
-        const xs = makeScaler(axis.xMin, axis.xMax, axis.xScale, cellW);
-        const ys = makeScaler(axis.yMin, axis.yMax, axis.yScale, cellH);
+            const xs = makeScaler(axis.xMin, axis.xMax, axis.xScale, cellW);
+            const ys = makeScaler(axis.yMin, axis.yMax, axis.yScale, cellH);
 
-        const ix = s.params.indexOf(axis.xParam), iy = s.params.indexOf(axis.yParam);
-        if (ix<0 || iy<0) return;
-        const ax=s.data[ix], ay=s.data[iy];
-        const dotSize = scatterDotSize();
-        const dotRadius = dotSize / 2;
-        if (plotStyle.scatterGridPseudocolor) {
-            drawPseudocolorScatterCell(targetCtx, cellArea, s, popFilter);
-        } else {
-            targetCtx.fillStyle = hexToRGBA(s.color, scatterOpacity());
-            const N = ax.length; const stride = N>50000? Math.ceil(N/50000) : 1;
+            const ix = s.params.indexOf(axis.xParam), iy = s.params.indexOf(axis.yParam);
+            if (ix>=0 && iy>=0) {
+                const ax=s.data[ix], ay=s.data[iy];
+                const dotSize = scatterDotSize();
+                const dotRadius = dotSize / 2;
+                if (plotStyle.scatterGridPseudocolor) {
+                    drawPseudocolorScatterCell(targetCtx, cellArea, s, popFilter);
+                } else {
+                    targetCtx.fillStyle = hexToRGBA(s.color, scatterOpacity());
+                    const N = ax.length; const stride = N>50000? Math.ceil(N/50000) : 1;
 
-            targetCtx.beginPath();
-            for (let k=0;k<N;k+=stride){ 
-                const vx=ax[k], vy=ay[k]; 
-                if(axis.xScale==='log' && vx<=0) continue; 
-                if(axis.yScale==='log' && vy<=0) continue; 
-                if(!popFilter(s,k)) continue; 
-                const px = cellX + xs.fwd(vx); 
-                const py = cellY + cellH - ys.fwd(vy); 
-                if(px<cellX||px>cellX+cellW||py<cellY||py>cellY+cellH) continue; 
-                targetCtx.rect(px-dotRadius,py-dotRadius,dotSize,dotSize); 
+                    targetCtx.beginPath();
+                    for (let k=0;k<N;k+=stride){
+                        const vx=ax[k], vy=ay[k];
+                        if(axis.xScale==='log' && vx<=0) continue;
+                        if(axis.yScale==='log' && vy<=0) continue;
+                        if(!popFilter(s,k)) continue;
+                        const px = cellX + xs.fwd(vx);
+                        const py = cellY + cellH - ys.fwd(vy);
+                        if(px<cellX||px>cellX+cellW||py<cellY||py>cellY+cellH) continue;
+                        targetCtx.rect(px-dotRadius,py-dotRadius,dotSize,dotSize);
+                    }
+                    targetCtx.fill();
+                }
             }
-            targetCtx.fill();
+            targetCtx.fillStyle = getComputedStyle(document.body).getPropertyValue('--text');
+            targetCtx.textAlign = 'right';
+            targetCtx.font = '400 10px "Avenir Next", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif';
+            targetCtx.fillText(s.name, cellX + cellW - 5, cellY + 12);
         }
-        targetCtx.fillStyle = getComputedStyle(document.body).getPropertyValue('--text');
-        targetCtx.textAlign = 'right';
-        targetCtx.font = '400 10px "Avenir Next", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif';
-        targetCtx.fillText(s.name, cellX + cellW - 5, cellY + 12);
-        drawGatesInGridCell(targetCtx, cellArea, s, isExport, exportOptions);
-        drawPlotBorder(targetCtx, cellArea);
+        if (drawOverlayPhase()) {
+            drawGatesInGridCell(targetCtx, cellArea, s, isExport, exportOptions);
+            drawPlotBorder(targetCtx, cellArea);
+        }
     });
 }
 
@@ -2784,7 +2862,7 @@ function addSmoothDensityStrokeToPath(targetCtx, densityPoints, xForPoint, yForP
     targetCtx.lineTo(xForPoint(last), yForPoint(last));
 }
 
-function drawHistPlot(targetCtx, isExport, isOffset, exportOptions, width, height){
+function drawHistData(targetCtx, isExport, isOffset, exportOptions, width, height){
     const area = plotArea(width, height);
     drawAxes(targetCtx, area, true, !isOffset); 
     const {x,y,w,h} = area;
@@ -2895,6 +2973,12 @@ function drawHistPlot(targetCtx, isExport, isOffset, exportOptions, width, heigh
             targetCtx.stroke();
         });
     }
+}
+
+function drawHistPlot(targetCtx, isExport, isOffset, exportOptions, width, height) {
+    if (drawDataPhase()) drawHistData(targetCtx,isExport,isOffset,exportOptions,width,height);
+    if (!drawOverlayPhase()) return;
+    const area=plotArea(width,height);
     if (isOffset) {
         const showGates = !isExport || !!exportOptions.showGates;
         const showPercent = !isExport || !!exportOptions.showPercent;
@@ -3691,6 +3775,82 @@ function gatePercentTextForSample(g, sampleId) {
     if (!Number.isFinite(pct)) return 'N/A';
     return `${pct.toFixed(2)}%`;
 }
+// Preview only: evaluate a bounded, evenly spaced sample against the unchanged parent.
+// Exact percentages/statistics/exports continue to use every imported event.
+function makeGatePreview(g, budget = 25000) {
+    const applicable=checkedSamples().filter(s=>gateAppliesToSample(g,s.id));
+    const total=applicable.reduce((sum,s)=>sum+s.n,0),stride=Math.max(1,Math.ceil(total/budget));
+    const parentFilter=makePopulationFilter(g.parentId),points=new Map();
+    let offset=0;
+    for (const sample of applicable) {
+        const list=[],xcol=sample.data[sample.params.indexOf(g.xParam)],ycol=sample.data[sample.params.indexOf(g.yParam)];
+        for (let i=(stride-offset%stride)%stride;i<sample.n;i+=stride) {
+            if (parentFilter(sample,i)) list.push([xcol?.[i],ycol?.[i]]);
+        }
+        points.set(sample.id,list);offset+=sample.n;
+    }
+    return {gateId:g.id,points,signature:null,values:new Map()};
+}
+function gatePreviewTester(g) {
+    if (g.type==='quad') {
+        const c=quadrantBasis(g),ca=Math.cos(c.a),sa=Math.sin(c.a),cb=Math.cos(c.b),sb=Math.sin(c.b);
+        const right=g.def.q==='UR'||g.def.q==='LR',up=g.def.q==='UR'||g.def.q==='UL';
+        return (x,y)=>{
+            const dx=(transformAxisValue(x,g.xScale)-c.x)/c.sx,dy=(transformAxisValue(y,g.yScale)-c.y)/c.sy;
+            return Number.isFinite(dx)&&Number.isFinite(dy)&&(dx*cb+dy*sb>=-1e-12)===right&&(-dx*sa+dy*ca>=-1e-12)===up;
+        };
+    }
+    if (g.type==='poly') {
+        const points=g.def.pts.map(p=>gatePointToTransformed(p.x,p.y,g)).filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.y));
+        return (x,y)=>{const p=gatePointToTransformed(x,y,g);return points.length>=3&&Number.isFinite(p.x)&&Number.isFinite(p.y)&&pnpoly(points,p.x,p.y);};
+    }
+    if (g.type==='ellipse') {
+        const c=getEllipseCenterT(g),{rx,ry,angle=0}=g.def,ca=Math.cos(angle),sa=Math.sin(angle);
+        if (!Number.isFinite(c.x)||!Number.isFinite(c.y)||!(rx>0)||!(ry>0)) return ()=>false;
+        return (x,y)=>{
+            const p=gatePointToTransformed(x,y,g),dx=p.x-c.x,dy=p.y-c.y;
+            if (!Number.isFinite(dx)||!Number.isFinite(dy)) return false;
+            const lx=dx*ca+dy*sa,ly=-dx*sa+dy*ca;
+            return lx*lx/(rx*rx)+ly*ly/(ry*ry)<=1;
+        };
+    }
+    return (x,y)=>pointInGate(g,x,y);
+}
+function liveGatePercent(g, sampleId = null) {
+    const edited=gates.find(g=>g.id===(gateDragState?.id || editingGate.id));
+    if (!edited) return null;
+    if (liveGatePreview?.gateId!==edited.id) liveGatePreview=makeGatePreview(edited);
+    const signature=JSON.stringify(quadSiblings(edited).map(g=>g.def));
+    if (liveGatePreview.signature!==signature) {liveGatePreview.signature=signature;liveGatePreview.values.clear();}
+    const key=JSON.stringify([g.id,sampleId]);
+    if (liveGatePreview.values.has(key)) return liveGatePreview.values.get(key);
+    const test=gatePreviewTester(g);
+    let inside=0,total=0;
+    for (const [id,points] of liveGatePreview.points) {
+        if (sampleId && id!==sampleId) continue;
+        total+=points.length;
+        for (const [x,y] of points) if (test(x,y)) inside++;
+    }
+    const value=total?inside/total*100:null;liveGatePreview.values.set(key,value);return value;
+}
+function canvasGatePercentText(g, sampleId = null) {
+    if (!gateEditInProgress() || renderingExport) return sampleId?gatePercentTextForSample(g,sampleId):gatePercentText(g);
+    const edited=gates.find(g=>g.id===(gateDragState?.id || editingGate.id));
+    if (edited && quadSiblings(edited).includes(g)) {
+        const pct=liveGatePercent(g,sampleId);
+        return Number.isFinite(pct)?`≈${pct.toFixed(1)}%`:'≈N/A';
+    }
+    const pct=sampleId?gatePercentBySampleCache.get(g.id)?.get(sampleId):gatePercentCache.get(g.id);
+    return Number.isFinite(pct)?`${pct.toFixed(2)}%`:'N/A';
+}
+function finishGateInteraction() {
+    if (!gateEditInProgress() && !labelDragGateId) return false;
+    const edited=gateEditInProgress();
+    gateDragState=null;editingGate.handle=null;editingGate.area=null;
+    labelDragGateId=null;labelDragCellArea=null;labelDragSampleId=null;liveGatePreview=null;
+    if (edited) markGatePercentDirty();
+    render();return true;
+}
 function getGridCellLayouts(width, height) {
     const area = plotArea(width, height);
     const visSamples = visibleSamples();
@@ -3757,7 +3917,7 @@ function getCanvasGateLabelLayouts(width, height, targetCtx = ctx) {
           ? y + h * clamp01(pos.yFrac, 0.1)
           : y + h - ys.fwd(pos.y);
         if (!isFinite(px) || !isFinite(py)) return;
-        const text = gatePercentText(g);
+        const text = canvasGatePercentText(g);
         const tw = targetCtx.measureText(text).width;
         const bw = tw + 10, bh = 18;
         labels.push({ gateId: g.id, text, px, py, bw, bh });
@@ -3780,7 +3940,7 @@ function getCanvasGridGateLabelLayouts(width, height, targetCtx = ctx) {
             const px = x + xs.fwd(pos.x);
             const py = y + h - ys.fwd(pos.y);
             if (!isFinite(px) || !isFinite(py)) return;
-            const text = gatePercentTextForSample(g, sample.id);
+            const text = canvasGatePercentText(g, sample.id);
             const tw = targetCtx.measureText(text).width;
             const bw = tw + 8, bh = 14;
             labels.push({ gateId: g.id, sampleId: sample.id, text, px, py, bw, bh, cellArea });
@@ -3808,7 +3968,7 @@ function getCanvasHistOffsetGateLabelLayouts(width, height, targetCtx = ctx) {
             const px = x + xs.fwd(pos.x);
             const py = cellArea.y + sampleHeight * clamp01(pos.yFrac, 0.38);
             if (!isFinite(px) || !isFinite(py)) return;
-            const text = gatePercentTextForSample(g, sample.id);
+            const text = canvasGatePercentText(g, sample.id);
             const tw = targetCtx.measureText(text).width;
             const bw = tw + 8, bh = 14;
             labels.push({ gateId: g.id, sampleId: sample.id, text, px, py, bw, bh, cellArea, isOffsetHist: true });
@@ -4259,6 +4419,7 @@ function hitGateAtCanvasPoint(px, py) {
 }
 ui.plot.addEventListener('mousedown', (e)=>{
   if (e.button !== 0) return;
+  liveGatePreview=null;
   const rect = ui.plot.getBoundingClientRect(); const px = e.clientX-rect.left, py=e.clientY-rect.top;
   const pointerCtx = pointerPlotContext(px, py);
   const activeArea = pointerCtx?.area || plotArea();
@@ -4276,7 +4437,7 @@ ui.plot.addEventListener('mousedown', (e)=>{
         labelDragGateId = targetGate?.id || hitLabel.gateId;
         labelDragCellArea = hitLabel.cellArea || null;
         labelDragSampleId = hitLabel.sampleId || null;
-        return;
+        render();return;
     }
     if (editingGate.id) {
         const g = gates.find(g => g.id === editingGate.id);
@@ -4298,7 +4459,7 @@ ui.plot.addEventListener('mousedown', (e)=>{
                 editingGate.handle = handle;
                 editingGate.id = targetGate.id;
                 editingGate.area = activeArea;
-                return;
+                render();return;
             }
         }
     }
@@ -4349,6 +4510,7 @@ ui.plot.addEventListener('mousedown', (e)=>{
     drawState.pts.push(e.shiftKey && last ? constrainOrthogonalData(last, px, py, {x,y,w,h}) : data);
     drawState.shift = e.shiftKey;
   }
+  render();
 });
 
 ui.plot.addEventListener('mousemove', (e)=>{
@@ -4466,7 +4628,6 @@ ui.plot.addEventListener('mousemove', (e)=>{
   }
   drawState.shift = e.shiftKey;
   render();
-  drawGhost();
 });
 
 ui.plot.addEventListener('mouseleave',()=>{if(hoverQuadrant){hoverQuadrant=null;ui.plot.style.cursor='';ui.plot.title='';if(!editingGate.handle)render();}ui.cursorCoords.style.display='none';});
@@ -4539,9 +4700,7 @@ window.addEventListener('keydown', (e)=>{
 });
 
 window.addEventListener('mouseup', (e)=>{
-  if (labelDragGateId) { labelDragGateId = null; labelDragCellArea = null; labelDragSampleId = null; return; }
-  if (gateDragState) { gateDragState = null; markGatePercentDirty(); render(); return; }
-  if (editingGate.handle) { editingGate.handle = null; editingGate.area = null; markGatePercentDirty(); render(); return; }
+  if (finishGateInteraction()) return;
   if (!drawState) return;
   
   // Feature: Zoom Execution
@@ -4579,6 +4738,8 @@ window.addEventListener('mouseup', (e)=>{
   else if (drawState.type==='segment') finalizeSegment();
   else if (drawState.type==='ellipse') finalizeEllipse();
 });
+
+window.addEventListener('blur',()=>{finishGateInteraction();if(drawState){drawState=null;render();}});
 
 function drawGhost(){
   const area = drawState?.area || plotArea();
