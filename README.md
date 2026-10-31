@@ -90,6 +90,16 @@ Right-click a gate to apply it to a sample or all samples. Sample-specific gates
 
 Press **Q** or choose the quadrant tool, then click the desired intersection in a scatter plot. Q1–Q4 are separate populations with a shared centre and two dividers. Hover over a divider to highlight it, then drag to tilt it independently; drag the centre to move the set. Tilting is defined in the gate's saved linear/log coordinates and remains stable when zooming. Events on dividing lines belong to the upper/right side, so finite events in the valid coordinate domain belong to exactly one quadrant. Copying to groups, applying to samples, and deleting operate on all four linked populations (and deletion removes their children).
 
+## Statistics tiles
+
+The cogwheel beside **Stats** customizes the existing three tiles. Each tile starts with no custom statistic selected, keeping **Events**, **% of total**, and **% of parent** as the defaults. Choose events, either percentage, mean, median, or standard deviation; intensity statistics also require a parameter. Custom arithmetic axes are available as parameters.
+
+Choose **All samples together** for pooled event statistics or **Per sample** for a row for each applicable sample inside each tile. Both modes follow the selected population, checked files, sample groups, and gate membership. Pooled intensity values are calculated from the events themselves, rather than by averaging sample statistics. Compensation is respected, and missing/non-finite parameter values are excluded, matching CSV export. A parameter absent from the current files is shown as N/A.
+
+The active population appears beneath **Stats**, with its group and gate path where applicable (hover for the full name). The download arrow saves **displayed-statistics.csv** with exactly the three displayed metric/parameter combinations in tile order, using the current pooled or per-sample mode. Rows include the population context, and numeric values omit display-only thousands separators and percent signs. The arrow is disabled when no sample events are in view.
+
+**Reset defaults** clears the dialog's selections; **Apply** commits the changes and **Cancel** discards them. Choices are saved in JSON and `.cytofeather` workspaces and support undo/redo. Older workspaces open with the original default tiles.
+
 ## Exports
 
 The Export menu includes:

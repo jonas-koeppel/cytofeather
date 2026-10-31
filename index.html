@@ -382,6 +382,26 @@
     .left .sideResizer{right:-5px}.right .sideResizer{left:-5px}
     .sideResizer:focus-visible,.sideResizer.is-dragging{background:color-mix(in srgb,var(--accent) 24%,transparent)}
     body.is-col-resizing{cursor:col-resize;user-select:none}
+    .statsHeading{display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .statsHeadingCopy{min-width:0}
+    .statsPopulation{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;font-weight:400;letter-spacing:normal;text-transform:none;color:var(--muted);margin-top:4px}
+    .statsHeadingActions{display:flex;align-items:center;gap:2px;flex-shrink:0}
+    .statsSettingsButton{width:25px;height:25px;flex:0 0 25px;padding:3px;border:0;background:transparent;color:var(--muted);border-radius:6px}
+    .statsSettingsButton svg{width:18px;height:18px;stroke:currentColor;stroke-width:1.6;fill:none;stroke-linecap:round;stroke-linejoin:round}
+    .statsSettingsButton:hover:not(:disabled){background:var(--hover-bg);color:var(--text)}
+    .statsSettingsButton:disabled{opacity:.35;cursor:default}
+    .statCard{min-width:0}.statCaption{min-width:0}.statParameter{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;color:var(--muted);margin:4px 0 6px}
+    .statCard:first-child .statParameter{margin-bottom:0}.statCard:first-child>b{flex-shrink:0;margin-left:8px}
+    .statCard.is-per-sample{display:block}.statCard.is-per-sample .pill{margin-bottom:7px}.statCard.is-per-sample b{font-size:12px;white-space:nowrap;flex-shrink:0}
+    .statSampleList{max-height:180px;overflow:auto}.statSampleRow{display:flex;align-items:center;gap:5px;margin-top:7px}
+    .statSampleDot{width:6px;height:6px;border-radius:50%;flex:0 0 6px}.statSampleName{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;color:var(--muted)}
+    .statCard.is-per-sample:not(:first-child) .statSampleRow{display:grid;grid-template-columns:6px minmax(0,1fr);gap:2px 5px}
+    .statCard.is-per-sample:not(:first-child) .statSampleRow b{grid-column:2;justify-self:end}
+    .stats-settings-modal{width:min(540px,100%)}.stats-settings-modal>p{line-height:1.5}
+    .statsModeOptions{display:flex;flex-wrap:wrap;gap:10px 22px;margin:18px 0;padding:0;border:0}.statsModeOptions legend{font-size:11px;font-weight:600;margin-bottom:5px}
+    .statsModeOptions label{display:flex;align-items:center;gap:6px;margin:0;font-size:12px;text-transform:none;letter-spacing:0;font-weight:400;cursor:pointer}
+    .statsTileEditor{padding:12px;margin-top:10px;border:1px solid var(--border-color);border-radius:11px}.statsTileEditorHead{display:flex;align-items:center;justify-content:space-between;gap:8px}.statsTileEditor h5{font-size:12px;margin:0}.statsTileEditor .hint{font-size:10px}
+    #statsSettingsError{color:var(--bad)}
     .historyButton{width:34px;padding:0}.historyButton svg{width:18px;height:18px}
     @media(max-width:1240px){.right .sideResizer{display:none}}
     @media(max-width:900px){.sideResizer{display:none}}
@@ -459,6 +479,20 @@
       <div class="modal-footer"><button id="cancelPopulationExport" class="secondary" type="button">Cancel</button><button id="confirmPopulationExport" type="button">Export CSV</button></div>
     </div>
   </div>
+  <div class="modal-overlay" id="statsSettingsModal">
+    <div class="modal-content stats-settings-modal" role="dialog" aria-modal="true" aria-labelledby="statsSettingsTitle">
+      <h4 id="statsSettingsTitle">Stats tiles</h4>
+      <p class="hint">Customize any of the three tiles. Leave a statistic unselected to keep its default. Values follow the selected population and checked samples in view.</p>
+      <fieldset class="statsModeOptions"><legend>Show values</legend>
+        <label><input id="statsModePooled" type="radio" name="statsDisplayMode" value="pooled" checked> All samples together</label>
+        <label><input id="statsModeSample" type="radio" name="statsDisplayMode" value="sample"> Per sample</label>
+      </fieldset>
+      <div id="statsTileOptions"></div>
+      <p id="statsSettingsError" class="hint" role="alert"></p>
+      <div class="modal-footer"><button id="resetStatsSettings" class="secondary" type="button">Reset defaults</button><button id="cancelStatsSettings" class="secondary" type="button">Cancel</button><button id="applyStatsSettings" type="button">Apply</button></div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="statsExportModal">
     <div class="modal-content stats-export-modal">
       <h4>Statistics Export</h4>
@@ -758,7 +792,7 @@
 
     <section class="col right">
       <div id="rightResizer" class="sideResizer" role="separator" aria-label="Resize Stats and Gates sidebar" aria-orientation="vertical" tabindex="0" title="Drag to resize; double-click to reset"></div>
-      <h3>Stats</h3>
+      <h3 class="statsHeading"><span class="statsHeadingCopy">Stats<span id="statsPopulationLabel" class="statsPopulation">All events</span></span><span class="statsHeadingActions"><button id="downloadPanelStats" class="statsSettingsButton" type="button" title="Download displayed statistics (CSV)" aria-label="Download displayed statistics as CSV" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 16v4h14v-4"/></svg></button><button id="statsSettingsButton" class="statsSettingsButton" type="button" title="Customize statistics" aria-label="Customize statistics" aria-haspopup="dialog" aria-controls="statsSettingsModal"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.2 3-.6 2.2-1.7 1L4.7 6 3.3 8.4 5 10v2l-1.7 1.6L4.7 16l2.2-.2 1.7 1 .6 2.2H12l.6-2.2 1.7-1 2.2.2 1.4-2.4L16.2 12v-2l1.7-1.6L16.5 6l-2.2.2-1.7-1L12 3Z"/><circle cx="10.6" cy="11" r="3"/></svg></button></span></h3>
       <div class="stats" id="statsBox"></div>
       <div class="sep"></div>
       <h3>Gates</h3>
@@ -900,6 +934,9 @@ const paramSettings = Object.create(null);
 let gatePercentCache = new Map();
 let gatePercentBySampleCache = new Map();
 let gatePercentCacheDirty = true;
+let statsSettings={mode:'pooled',tiles:[null,null,null]};
+let statsRevision=0;
+let statsPanelCache=null;
 const pdfLabelCache = new Map();
 let labelDragGateId = null;
 let labelDragCellArea = null;
@@ -954,7 +991,7 @@ function safeHandler(label, fn) {
         }
     };
 }
-function markGatePercentDirty() { gatePercentCacheDirty = true; }
+function markGatePercentDirty() { gatePercentCacheDirty = true; statsRevision++; statsPanelCache=null; }
 function syncToolAvailability() {
     const isHist = ui.plotType.value.startsWith('hist');
     const is2d = ui.plotType.value.startsWith('scatter');
@@ -3306,13 +3343,13 @@ function hitQuadrantDivider(px,py,area,sampleId) {
 function historyState() {
     const clone=v=>JSON.parse(JSON.stringify(v));
     const ordered=Array.from(ui.fileList.children).map(row=>row.dataset.sampleId);
-    return {version:2,customAxes:clone(customAxes),gates:clone(gates),sampleGroups:clone(sampleGroups),
+    return {version:2,statsSettings:clone(statsSettings),customAxes:clone(customAxes),gates:clone(gates),sampleGroups:clone(sampleGroups),
         samples:ordered.map(id=>samples.find(s=>s.id===id)).filter(Boolean).map(s=>({...s,params:s.params.slice(),paramDetectors:s.paramDetectors?.slice(),paramStains:s.paramStains?.slice(),customAxisNames:s.customAxisNames?.slice(),data:(s.rawData||s.data).slice(),rawData:undefined})),
         axis:{...axis},compensation:clone(compensationState),visibleSampleIds:Array.from(visibleSampleIds),currentPopulationId,
         collapsedGateIds:Array.from(collapsedGateIds),plotStyle:{...plotStyle},plotType:ui.plotType.value,gridCols:ui.gridCols.value,paramSettings:clone(paramSettings),theme:document.body.dataset.theme};
 }
 function historyKey(state) {
-    return JSON.stringify([state.customAxes,state.gates.map(g=>({...g,labelPos:g.labelPos?.manual?g.labelPos:undefined,sampleLabelPos:g.sampleLabelPos?Object.fromEntries(Object.entries(g.sampleLabelPos).filter(([,p])=>p.manual)):undefined})),state.sampleGroups,
+    return JSON.stringify([state.statsSettings,state.customAxes,state.gates.map(g=>({...g,labelPos:g.labelPos?.manual?g.labelPos:undefined,sampleLabelPos:g.sampleLabelPos?Object.fromEntries(Object.entries(g.sampleLabelPos).filter(([,p])=>p.manual)):undefined})),state.sampleGroups,
         state.samples.map(s=>({id:s.id,name:s.name,color:s.color,params:s.params})),state.axis,state.compensation,state.visibleSampleIds,state.plotStyle,state.plotType,state.gridCols,state.paramSettings,state.theme]);
 }
 function historyBusy() { return !!(drawState || gateDragState || labelDragGateId || editingGate.handle || document.activeElement?.isContentEditable); }
@@ -3857,31 +3894,156 @@ function pointInGate(g, xval, yval){
 }
 function pnpoly(pts, x, y){ let inside=false; for(let i=0,j=pts.length-1;i<pts.length;j=i++) { const xi=pts[i].x, yi=pts[i].y, xj=pts[j].x, yj=pts[j].y; const intersect=((yi>y)!=(yj>y)) && (x < (xj-xi)*(y-yi)/(yj-yi + 1e-12)+xi); if(intersect) inside=!inside; } return inside; }
 
-function updateStats(){
-  const targetGateId = currentPopulationId;
-  const targetGate = targetGateId ? gates.find(g => g.id === targetGateId) : null;
-  const targetSampleId = targetGate ? gateEffectiveSampleId(targetGate) : null;
-  const filt = makePopulationFilter(targetGateId);
-  let total=0, inPop=0; let inParent=0; let parentId=null;
-  visibleSamples().forEach(s=>{
-    if (targetSampleId && targetSampleId !== s.id) return;
-    const n=s.n;
-    total+=n;
-    const parentFilt = targetGateId ? makePopulationFilter(gates.find(g=>g.id===targetGateId)?.parentId) : ()=>true;
-    for(let k=0;k<n;k++){
-      if(parentFilt(s,k)) inParent++;
-      if(filt(s,k)) inPop++;
-    }
-  });
-
-  const pctTotal = total? (inPop/total*100):0;
-  const pctParent = inParent? (inPop/inParent*100):0;
-  ui.statsBox.innerHTML = `
-    <div class="statCard"><span class="pill">Events</span><b>${inPop.toLocaleString()}</b></div>
-    <div class="statCard"><span class="pill">% of total</span><b>${pctTotal.toFixed(2)}%</b></div>
-    <div class="statCard"><span class="pill">% of parent</span><b>${pctParent.toFixed(2)}%</b></div>
-  `;
+// ---------------------------- Configurable statistics tiles ----------------------------
+function normalizeStatsSettings(value) {
+    if (value == null) return {mode:'pooled',tiles:[null,null,null]};
+    if (typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid statistics tile settings.');
+    const mode=value.mode ?? 'pooled',tiles=value.tiles ?? [null,null,null];
+    if (!['pooled','sample'].includes(mode) || !Array.isArray(tiles) || tiles.length !== 3) throw new Error('Invalid statistics tile settings.');
+    return {mode,tiles:Array.from(tiles, tile=>{
+        if (tile == null || tile.metric === '') return null;
+        const metric=typeof tile === 'object' && STATS_EXPORT_METRICS.find(m=>m.id===tile.metric);
+        if (!metric) throw new Error('Invalid statistic for a tile.');
+        if (metric.perParam && (typeof tile.parameter !== 'string' || !tile.parameter.trim())) throw new Error(`Choose a parameter for ${metric.label.toLowerCase()}.`);
+        return {metric:metric.id,parameter:metric.perParam?tile.parameter:null};
+    })};
 }
+function effectiveStatsTiles(settings) {
+    const defaults=['events','percent_total','percent_parent'];
+    return settings.tiles.map((tile,i)=>({metric:STATS_EXPORT_METRICS.find(m=>m.id===(tile?.metric || defaults[i])),parameter:tile?.parameter || null}));
+}
+function collectPanelStatistics(populationId, plotSamples, parameters, mode) {
+    const targetGate=gates.find(g=>g.id===populationId),group=sampleGroups.find(g=>g.id===populationId);
+    const applicable=plotSamples.filter(s=>(!group || group.sampleIds.includes(s.id)) && (!targetGate || gateAppliesToSample(targetGate,s.id)));
+    const filter=makePopulationFilter(populationId),parentFilter=makePopulationFilter(targetGate?.parentId);
+    const createRecord=sample=>({sample,events:0,total:0,parent:0,values:new Map(parameters.map(p=>[p,[]]))});
+    const records=mode==='sample'?[]:[createRecord(null)];
+    for (const sample of applicable) {
+        const record=mode==='sample'?createRecord(sample):records[0];
+        if (mode==='sample') records.push(record);
+        record.total+=sample.n;
+        const columns=parameters.map(p=>sample.data[sample.params.indexOf(p)]);
+        for (let i=0;i<sample.n;i++) {
+            if (parentFilter(sample,i)) record.parent++;
+            if (!filter(sample,i)) continue;
+            record.events++;
+            parameters.forEach((p,j)=>{const value=columns[j]?.[i];if(Number.isFinite(value))record.values.get(p).push(value);});
+        }
+    }
+    return records.map(({values,...record})=>({...record,stats:new Map(parameters.map(p=>[p,calculateStats(values.get(p))]))}));
+}
+function panelStatisticRawValue(record, metric, parameter) {
+    if (metric === 'events') return record.events;
+    if (metric === 'percent_total') return (record.total?record.events/record.total*100:0).toFixed(2);
+    if (metric === 'percent_parent') return record.parent?(record.events/record.parent*100).toFixed(2):record.total?'N/A':'0.00';
+    const value=record.stats.get(parameter)?.[metric];
+    return value == null ? 'N/A' : value;
+}
+function panelStatisticValue(record, metric, parameter) {
+    const value=panelStatisticRawValue(record,metric,parameter);
+    if (value === 'N/A') return value;
+    if (metric === 'events') return value.toLocaleString();
+    if (metric === 'percent_total' || metric === 'percent_parent') return value+'%';
+    // Match the CSV's three significant figures, with readable tile formatting.
+    const n=Number(value),magnitude=Math.abs(n);
+    return magnitude>=1e6 || (magnitude>0 && magnitude<.01)?n.toExponential(2):n.toLocaleString(undefined,{maximumSignificantDigits:3});
+}
+function statsPopulationContext(populationId) {
+    const gate=gates.find(g=>g.id===populationId);
+    const group=sampleGroups.find(g=>g.id===(gate?gateSampleGroupId(gate):populationId));
+    const name=gate?.name || group?.name || 'All events';
+    const path=gate?gateExportPath(gate):name;
+    return {name,path,group:group?.name || '',label:gate && group?group.name+' · '+path:path};
+}
+function currentPanelStatistics() {
+    const tiles=effectiveStatsTiles(statsSettings);
+    const parameters=[...new Set(tiles.filter(t=>t.metric.perParam).map(t=>t.parameter))];
+    const plotSamples=visibleSamples();
+    const key=JSON.stringify([statsRevision,currentPopulationId,statsSettings.mode,parameters,plotSamples.map(s=>s.id)]);
+    if (statsPanelCache?.key !== key) statsPanelCache={key,records:collectPanelStatistics(currentPopulationId,plotSamples,parameters,statsSettings.mode)};
+    return {tiles,records:statsPanelCache.records,mode:statsSettings.mode,population:statsPopulationContext(currentPopulationId)};
+}
+function panelStatisticsCSV({tiles,records,mode,population}) {
+    const headers=['sample','population','population_group','population_path'],used=new Set(headers);
+    for (const {metric,parameter} of tiles) {
+        const base=metric.perParam?metric.id+'_'+parameter:metric.header;
+        let header=base,suffix=2;
+        while (used.has(header)) header=base+'_'+suffix++;
+        headers.push(header);used.add(header);
+    }
+    const rows=[headers];
+    for (const record of records) rows.push([
+        mode==='sample'?record.sample.name:'All samples together',population.name,population.group,population.path,
+        ...tiles.map(({metric,parameter})=>panelStatisticRawValue(record,metric.id,parameter))
+    ]);
+    return rows.map(row=>row.map(csvEscape).join(',')).join('\r\n');
+}
+function updateStats() {
+    const {tiles,records,mode,population}=currentPanelStatistics(),perSample=mode==='sample';
+    const populationLabel=byId('statsPopulationLabel');populationLabel.textContent=population.label;populationLabel.title=population.label;
+    byId('downloadPanelStats').disabled=!records.some(record=>record.total>0);
+    const cards=tiles.map(({metric,parameter})=>{
+        const card=document.createElement('div');card.className='statCard';card.classList.toggle('is-per-sample',perSample);
+        const heading=document.createElement('div');heading.className='statCaption';
+        const label=document.createElement('span');label.className='pill';label.textContent=metric.id==='percent_total'?'% of total':metric.id==='percent_parent'?'% of parent':metric.label;
+        heading.append(label);
+        if (metric.perParam) {const name=document.createElement('span');name.className='statParameter';name.textContent=parameter;name.title=parameter;heading.append(name);}
+        card.append(heading);
+        if (perSample) {
+            const list=document.createElement('div');list.className='statSampleList';
+            for (const record of records) {
+                const row=document.createElement('div');row.className='statSampleRow';
+                const dot=document.createElement('span');dot.className='statSampleDot';dot.style.backgroundColor=record.sample.color;
+                const name=document.createElement('span');name.className='statSampleName';name.textContent=record.sample.name;name.title=record.sample.name;
+                const value=document.createElement('b');value.textContent=panelStatisticValue(record,metric.id,parameter);
+                row.append(dot,name,value);list.append(row);
+            }
+            if (!records.length) {const empty=document.createElement('span');empty.className='hint';empty.textContent='No samples in view';list.append(empty);}
+            card.append(list);
+        } else {
+            const value=document.createElement('b');value.textContent=panelStatisticValue(records[0],metric.id,parameter);card.append(value);
+        }
+        return card;
+    });
+    ui.statsBox.replaceChildren(...cards);
+    byId('statsSettingsButton').title=perSample?'Customize statistics · per sample':'Customize statistics · all samples together';
+}
+function populateStatsSettings(settings) {
+    byId('statsModePooled').checked=settings.mode==='pooled';byId('statsModeSample').checked=settings.mode==='sample';
+    const container=byId('statsTileOptions');container.replaceChildren();
+    const defaults=['Events','% of total','% of parent'],parameters=allParameterNames();
+    settings.tiles.forEach((tile,i)=>{
+        const section=document.createElement('section');section.className='statsTileEditor';
+        const title=document.createElement('h5');title.textContent=`Tile ${i+1}`;
+        const hint=document.createElement('span');hint.className='hint';hint.textContent=`Default: ${defaults[i]}`;
+        const head=document.createElement('div');head.className='statsTileEditorHead';head.append(title,hint);
+        const fields=document.createElement('div');fields.className='ctrlRow';
+        const metricWrap=document.createElement('div'),parameterWrap=document.createElement('div');
+        const metricLabel=document.createElement('label');metricLabel.htmlFor=`statsTileMetric${i}`;metricLabel.textContent='Statistic';
+        const metric=document.createElement('select');metric.id=metricLabel.htmlFor;metric.setAttribute('aria-label',`Tile ${i+1} statistic`);
+        metric.add(new Option('No custom statistic',''));STATS_EXPORT_METRICS.forEach(m=>metric.add(new Option(m.label,m.id)));metric.value=tile?.metric || '';
+        const parameterLabel=document.createElement('label');parameterLabel.htmlFor=`statsTileParameter${i}`;parameterLabel.textContent='Parameter';
+        const parameter=document.createElement('select');parameter.id=parameterLabel.htmlFor;parameter.setAttribute('aria-label',`Tile ${i+1} parameter`);
+        parameter.add(new Option('Choose parameter',''));parameters.forEach(p=>parameter.add(new Option(p,p)));
+        if (tile?.parameter && !parameters.includes(tile.parameter)) parameter.add(new Option(tile.parameter+' (not in current files)',tile.parameter));
+        parameter.value=tile?.parameter || '';
+        const syncParameter=()=>{parameter.disabled=!STATS_EXPORT_METRICS.find(m=>m.id===metric.value)?.perParam;};syncParameter();
+        metric.addEventListener('change',()=>{syncParameter();byId('statsSettingsError').textContent='';});
+        metricWrap.append(metricLabel,metric);parameterWrap.append(parameterLabel,parameter);fields.append(metricWrap,parameterWrap);section.append(head,fields);container.append(section);
+    });
+    byId('statsSettingsError').textContent='';
+}
+byId('statsSettingsButton').addEventListener('click',()=>{populateStatsSettings(statsSettings);openModal(byId('statsSettingsModal'));});
+byId('downloadPanelStats').addEventListener('click',()=>downloadFile(panelStatisticsCSV(currentPanelStatistics()),'text/csv;charset=utf-8','displayed-statistics.csv'));
+byId('cancelStatsSettings').addEventListener('click',()=>closeModal(byId('statsSettingsModal')));
+byId('resetStatsSettings').addEventListener('click',()=>populateStatsSettings(normalizeStatsSettings()));
+byId('applyStatsSettings').addEventListener('click',()=>{
+    try {
+        const next=normalizeStatsSettings({mode:byId('statsModeSample').checked?'sample':'pooled',tiles:Array.from({length:3},(_,i)=>({metric:byId(`statsTileMetric${i}`).value,parameter:byId(`statsTileParameter${i}`).value}))});
+        statsSettings=next;statsPanelCache=null;closeModal(byId('statsSettingsModal'));render();
+    } catch(error) {byId('statsSettingsError').textContent=error.message;for(let i=0;i<3;i++){const field=byId(`statsTileParameter${i}`);if(!field.disabled&&!field.value){field.focus();break;}}}
+});
+
 
 // ---------------------------- Gate Tree UI ----------------------------
 function closeGateApplyMenu() {
@@ -5630,7 +5792,7 @@ ui.confirmStatsExport.addEventListener('click', () => {
 
 function serializeWorkspace(options = {}) {
   return {
-    version: 2, customAxes,
+    version: 2, customAxes, statsSettings,
     samples: samples.map(s => {
       const { rawData, compensationApplied, ...storedSample } = s;
       return {...storedSample, data: options.binary ? Array.from(rawData || s.data) : Array.from(rawData || s.data, d => Array.from(d))};
@@ -5713,6 +5875,7 @@ function prepareWorkspace(workspace) {
   const validNames = names => Array.isArray(names) && names.every(n => typeof n === 'string' && n.trim()) && new Set(names).size === names.length;
   if (!workspace || !Array.isArray(workspace.samples) || !Array.isArray(workspace.gates) || !workspace.axis) fail('This is not a Cytofeather workspace.');
   if (workspace.version != null && ![1, 2].includes(workspace.version)) fail('This workspace version is not supported.');
+  const nextStatsSettings=normalizeStatsSettings(workspace.statsSettings);
   const nextSamples = workspace.samples.map(s => {
     if (!s || typeof s.id !== 'string' || !s.id || typeof s.name !== 'string' || !validNames(s.params) || !s.params.length || !Number.isSafeInteger(s.n) || s.n < 1 || !Array.isArray(s.data) || s.data.length !== s.params.length) fail('Invalid sample metadata.');
     if (s.data.some(d => !(Array.isArray(d) || d instanceof Float32Array || d instanceof Float64Array) || d.length !== s.n || d.some(v => v !== null && !finite(v) && !((d instanceof Float32Array || d instanceof Float64Array) && Number.isNaN(v))))) fail('Invalid sample event data.');
@@ -5792,7 +5955,7 @@ function prepareWorkspace(workspace) {
     if (!value || !['linear','log'].includes(value.scale) || !finite(value.min) || !finite(value.max) || value.min >= value.max || (value.scale === 'log' && value.min <= 0)) fail('Invalid saved parameter range.');
     settings[key] = {...value};
   }
-  return {...workspace, customAxes:nextCustomAxes, sampleGroups:nextGroups, samples: nextSamples, gates: nextGates, axis: nextAxis, compensation: nextCompensation, plotType: nextPlotType, paramSettings: settings};
+  return {...workspace, statsSettings:nextStatsSettings, customAxes:nextCustomAxes, sampleGroups:nextGroups, samples: nextSamples, gates: nextGates, axis: nextAxis, compensation: nextCompensation, plotType: nextPlotType, paramSettings: settings};
 }
 
 function restoreWorkspace(workspace) {
@@ -5801,6 +5964,7 @@ function restoreWorkspace(workspace) {
   resetHistory();
 }
 function installWorkspace(next) {
+  statsSettings=normalizeStatsSettings(next.statsSettings);
   customAxes=next.customAxes;
   sampleGroups = next.sampleGroups; samples = next.samples; gates = next.gates; axis = next.axis;
   collapsedGateIds.clear();
