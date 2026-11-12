@@ -6748,5 +6748,20 @@ render();
 initializeSidebars();
 initializeHistory();
 </script>
+<script>
+(() => {
+  // Public token from Cloudflare Web Analytics → Manage site.
+  const siteToken = '8e36ca2a4b384b23b73209e86fe2de0f';
+  if (!siteToken || location.origin !== 'https://jonas-koeppel.github.io' ||
+      !['/cytofeather/', '/cytofeather/index.html'].includes(location.pathname)) return;
+
+  const beacon = document.createElement('script');
+  beacon.type = 'module';
+  beacon.async = true;
+  beacon.src = 'https://static.cloudflareinsights.com/beacon.min.js';
+  beacon.dataset.cfBeacon = JSON.stringify({ token: siteToken, spa: false });
+  document.body.appendChild(beacon);
+})();
+</script>
 </body>
 </html>

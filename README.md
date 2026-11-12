@@ -2,7 +2,7 @@
 
 Cytofeather is a lightweight browser app for exploring flow cytometry data. It runs as a static HTML app, keeps analysis local in the browser, and focuses on fast visual gating, sample comparison, and polished exports.
 
-[Open Cytofeather](https://jonas-koeppel.github.io/flowfeather/) · [Report an issue](https://github.com/jonas-koeppel/flowfeather/issues)
+[Open Cytofeather](https://jonas-koeppel.github.io/cytofeather/) · [Report an issue](https://github.com/jonas-koeppel/cytofeather/issues)
 
 For a quick first look, click **Example Data**, draw a rectangle gate around a population, then try **Scatter (Grid)** or **Histogram (Overlay)**. A **Quick guide** is available below the gate hierarchy.
 
@@ -130,7 +130,11 @@ Use **Sample group** below the gate hierarchy to create named groups and choose 
 
 ## Privacy
 
-Imported data is processed in the browser. Cytofeather does not upload samples to a server, run analytics, or load third-party scripts. Opening the hosted app and loading its bundled examples makes ordinary requests to the static host. PDF generation uses the local `vendor/` library.
+Cytofeather processes imported files in the browser. Opening the hosted app and loading bundled examples makes requests to GitHub Pages. PDF generation uses the bundled jsPDF library.
+
+When enabled on the published GitHub Pages app, Cloudflare Web Analytics measures page views, referrals, and browser performance without cookies. The integration sends no imported filenames, FCS or CSV contents, gates, or workspace details. Local and self-hosted copies skip the beacon. Analysis and exports work if the beacon is blocked.
+
+To enable reporting, add `jonas-koeppel.github.io` under **Web Analytics → Add a site** in Cloudflare. Copy the public `token` from the snippet under **Manage site** into `siteToken` at the end of `index.html`, then publish the updated file to GitHub Pages. An empty token disables the beacon. To verify, open the published app, switch tabs, and check the browser’s Network panel for a successful request to `cloudflareinsights.com/cdn-cgi/rum`. Page views may take a few minutes to appear. [Cloudflare setup instructions](https://developers.cloudflare.com/web-analytics/get-started/)
 
 ## Current scope
 
